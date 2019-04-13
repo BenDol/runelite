@@ -267,8 +267,6 @@ public class ItemInfoOverlay extends Overlay
 			b.append("</br>");
 		}
 
-		b.append("</br>");
-
 		if (config.showBonuses())
 		{
 			ItemEquipment itemEquipment = item.getEquipment();
@@ -279,19 +277,7 @@ public class ItemInfoOverlay extends Overlay
 					b.append(" Slot: ").append(StringUtils.capitalize(itemEquipment.getSlot())).append("</br>");
 				}
 
-				if (itemEquipment.getRequirements() != null && !itemEquipment.getRequirements().isEmpty())
-				{
-					b.append(" Requirements:</br>");
-					for (Map.Entry<String, String> entry : itemEquipment.getRequirements().entrySet())
-					{
-						String key = entry.getKey();
-						String value = entry.getValue();
-						if (key != null && !key.isEmpty() && value != null && !value.isEmpty())
-						{
-							b.append("   ").append(StringUtils.capitalize(key)).append(": ").append(value).append("</br>");
-						}
-					}
-				}
+				b.append("</br>");
 
 				b.append(" Bonuses:</br>");
 				appendBonus(b, "Attack Stab: ", itemEquipment.getAttack_stab());
@@ -308,6 +294,22 @@ public class ItemInfoOverlay extends Overlay
 				appendBonus(b, "Ranged Strength: ", itemEquipment.getRanged_strength());
 				appendBonus(b, "Magic Damage: ", itemEquipment.getMagic_damage());
 				appendBonus(b, "Prayer: ", itemEquipment.getPrayer());
+
+				b.append("</br>");
+
+				if (itemEquipment.getRequirements() != null && !itemEquipment.getRequirements().isEmpty())
+				{
+					b.append(" Requirements:</br>");
+					for (Map.Entry<String, String> entry : itemEquipment.getRequirements().entrySet())
+					{
+						String key = entry.getKey();
+						String value = entry.getValue();
+						if (key != null && !key.isEmpty() && value != null && !value.isEmpty())
+						{
+							b.append("   ").append(StringUtils.capitalize(key)).append(": ").append(value).append("</br>");
+						}
+					}
+				}
 			}
 		}
 
