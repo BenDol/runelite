@@ -276,12 +276,12 @@ public class ItemInfoOverlay extends Overlay
 			{
 				if (itemEquipment.getSlot() != null && !itemEquipment.getSlot().isEmpty())
 				{
-					b.append("Slot: ").append(StringUtils.capitalize(itemEquipment.getSlot())).append("</br>");
+					b.append(" Slot: ").append(StringUtils.capitalize(itemEquipment.getSlot())).append("</br>");
 				}
 
 				if (itemEquipment.getRequirements() != null && !itemEquipment.getRequirements().isEmpty())
 				{
-					b.append("Requirements:</br>");
+					b.append(" Requirements:</br>");
 					for (Map.Entry<String, String> entry : itemEquipment.getRequirements().entrySet())
 					{
 						String key = entry.getKey();
