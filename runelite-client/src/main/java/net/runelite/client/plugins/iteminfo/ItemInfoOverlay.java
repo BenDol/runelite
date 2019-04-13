@@ -34,13 +34,14 @@ import net.runelite.api.MenuEntry;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.game.ItemInfoManager;
+import net.runelite.http.api.item.ItemEquipment;
 import net.runelite.http.api.osrsbox.ItemNotFoundException;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 import net.runelite.client.util.Text;
-import net.runelite.http.api.item.ItemBonus;
 import net.runelite.http.api.item.ItemInfo;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.inject.Inject;
 import java.awt.Dimension;
@@ -208,11 +209,8 @@ public class ItemInfoOverlay extends Overlay
 
 		if (config.showDescription() && item.getExamine() != null)
 		{
-			for (String examine : item.getExamine())
-			{
-				b.append(" ").append(examine);
-				b.append("</br>");
-			}
+			b.append(" ").append(item.getExamine());
+			b.append("</br>");
 		}
 		if (config.showWeight())
 		{
@@ -273,20 +271,43 @@ public class ItemInfoOverlay extends Overlay
 
 		if (config.showBonuses())
 		{
-			Map<ItemBonus, String> bonuses = item.getBonuses();
-			if (bonuses != null && !bonuses.isEmpty())
+			ItemEquipment itemEquipment = item.getEquipment();
+			if (itemEquipment != null)
 			{
-				b.append(" Bonuses:</br>");
-
-				for (Map.Entry<ItemBonus, String> entry : bonuses.entrySet())
+				if (itemEquipment.getSlot() != null && !itemEquipment.getSlot().isEmpty())
 				{
-					String bonus = entry.getValue();
-					if ((config.showEmptyBonuses() || !bonus.equals("0")) && entry.getKey() != null)
+					b.append("Slot: ").append(StringUtils.capitalize(itemEquipment.getSlot())).append("</br>");
+				}
+
+				if (itemEquipment.getRequirements() != null && !itemEquipment.getRequirements().isEmpty())
+				{
+					b.append("Requirements:</br>");
+					for (Map.Entry<String, String> entry : itemEquipment.getRequirements().entrySet())
 					{
-						b.append("   ").append(entry.getKey().getTitle()).append(": ").append(bonus)
-							.append("</br>");
+						String key = entry.getKey();
+						String value = entry.getValue();
+						if (key != null && !key.isEmpty() && value != null && !value.isEmpty())
+						{
+							b.append("   ").append(StringUtils.capitalize(key)).append(": ").append(value).append("</br>");
+						}
 					}
 				}
+
+				b.append(" Bonuses:</br>");
+				appendBonus(b, "Attack Stab: ", itemEquipment.getAttack_stab());
+				appendBonus(b, "Attack Slash: ", itemEquipment.getAttack_slash());
+				appendBonus(b, "Attack Crush: ", itemEquipment.getAttack_crush());
+				appendBonus(b, "Attack Magic: ", itemEquipment.getAttack_magic());
+				appendBonus(b, "Attack Ranged: ", itemEquipment.getAttack_ranged());
+				appendBonus(b, "Defence Stab: ", itemEquipment.getDefence_stab());
+				appendBonus(b, "Defence Slash: ", itemEquipment.getDefence_slash());
+				appendBonus(b, "Defence Crush: ", itemEquipment.getDefence_crush());
+				appendBonus(b, "Defence Magic: ", itemEquipment.getDefence_magic());
+				appendBonus(b, "Defence Ranged: ", itemEquipment.getDefence_ranged());
+				appendBonus(b, "Melee Strength: ", itemEquipment.getMelee_strength());
+				appendBonus(b, "Ranged Strength: ", itemEquipment.getRanged_strength());
+				appendBonus(b, "Magic Damage: ", itemEquipment.getMagic_damage());
+				appendBonus(b, "Prayer: ", itemEquipment.getPrayer());
 			}
 		}
 
@@ -296,14 +317,19 @@ public class ItemInfoOverlay extends Overlay
 			b = new StringBuilder();
 			if (item.getExamine() != null)
 			{
-				for (String examine : item.getExamine())
-				{
-					b.append(" ").append(examine);
-					b.append("</br>");
-				}
+				b.append(" ").append(item.getExamine());
+				b.append("</br>");
 			}
 		}
 		return b.toString();
+	}
+
+	protected void appendBonus(StringBuilder sb, String title, int bonus)
+	{
+		if (config.showEmptyBonuses() || bonus != 0)
+		{
+			sb.append("   ").append(title).append(bonus).append("</br>");
+		}
 	}
 
 	public boolean isShowing()

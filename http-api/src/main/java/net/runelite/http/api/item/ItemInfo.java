@@ -26,8 +26,6 @@ package net.runelite.http.api.item;
 
 import lombok.Data;
 
-import java.util.Map;
-
 /**
  * @author Ben Dol
  */
@@ -35,14 +33,18 @@ import java.util.Map;
 public class ItemInfo
 {
 	private int id;
+	private int linked_id;
 	private String name;
 	private String url;
 	private boolean tradeable;
+	private boolean tradeable_on_ge;
 	private boolean stackable;
 	private boolean noted;
 	private boolean noteable;
 	private boolean equipable;
+	private boolean equipable_by_player;
 	private boolean members;
+	private boolean placeholder;
 	private double weight;
 	private long buy_limit;
 	private Boolean quest_item;
@@ -50,7 +52,7 @@ public class ItemInfo
 	private long cost;
 	private int lowalch;
 	private int highalch;
-	private String[] examine;
+	private String examine;
 
-	private Map<ItemBonus, String> bonuses;
+	private ItemEquipment equipment;
 }
