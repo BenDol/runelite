@@ -52,4 +52,24 @@ public interface InterfaceStylesConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "hdMenu",
+		name = "High Detail menu",
+		description = "Replaces game menu with the RuneScape High Detail mode design"
+	)
+	default boolean hdMenu()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "rsCrossSprites",
+		name = "RuneScape cross sprites",
+		description = "Replaces left-click cross sprites with the ones in RuneScape"
+	)
+	default boolean rsCrossSprites()
+	{
+		return false;
+	}
 }

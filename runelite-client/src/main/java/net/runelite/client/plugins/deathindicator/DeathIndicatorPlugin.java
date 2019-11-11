@@ -37,7 +37,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.ItemID;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.ConfigChanged;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.LocalPlayerDeath;
@@ -63,7 +63,9 @@ public class DeathIndicatorPlugin extends Plugin
 		12850, // Lumbridge
 		11828, // Falador
 		12342, // Edgeville
-		11062 // Camelot
+		11062, // Camelot
+		13150, // Prifddinas (it's possible to spawn in 2 adjacent regions)
+		12894 // Prifddinas
 	);
 
 	@Inject

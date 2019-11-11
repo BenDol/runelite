@@ -87,6 +87,8 @@ class SlayerOverlay extends WidgetItemOverlay
 	{
 		this.plugin = plugin;
 		this.config = config;
+		showOnInventory();
+		showOnEquipment();
 	}
 
 	@Override
@@ -130,7 +132,7 @@ class SlayerOverlay extends WidgetItemOverlay
 		}
 
 		// Draw the counter in the bottom left for equipment, and top left for jewelry
-		textComponent.setPosition(new Point(bounds.x, bounds.y + (SLAYER_JEWELRY.contains(itemId)
+		textComponent.setPosition(new Point(bounds.x - 1, bounds.y - 1 + (SLAYER_JEWELRY.contains(itemId)
 			? bounds.height
 			: graphics.getFontMetrics().getHeight())));
 		textComponent.render(graphics);
