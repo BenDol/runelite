@@ -45,6 +45,16 @@ public interface ItemInfoConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "showRequirements",
+		name = "Show Requirements",
+		description = "Show an items requirement info"
+	)
+	default boolean showRequirements()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "useHotkeyToShow",
 		name = "Use Hotkey To Show (Ctrl)",
 		description = "Use Ctrl hotkey when hovering an item to show."

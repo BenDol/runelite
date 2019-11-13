@@ -209,30 +209,30 @@ public class ItemInfoOverlay extends Overlay
 
 		if (config.showDescription() && item.getExamine() != null)
 		{
-			b.append(" ").append(item.getExamine());
+			b.append(item.getExamine());
 			b.append("</br>");
 		}
 		if (config.showWeight())
 		{
-			b.append(" Weight: ").append(item.getWeight());
+			b.append("Weight: ").append(item.getWeight());
 			b.append("</br>");
 		}
 		if (config.showCost())
 		{
-			b.append(" Cost: ").append(item.getCost()).append("gp");
+			b.append("Cost: ").append(item.getCost()).append("gp");
 			b.append("</br>");
 		}
 		if (item.getBuy_limit() > 0 && config.showBuyLimit())
 		{
-			b.append(" Buy Limit: ").append(item.getBuy_limit());
+			b.append("Buy Limit: ").append(item.getBuy_limit());
 			b.append("</br>");
 		}
 
 		if (config.showAlchemyInfo() && (item.getLowalch() > 0 || item.getHighalch() > 0))
 		{
-			b.append(" Low Alch: ").append(item.getLowalch()).append("gp");
+			b.append("Low Alch: ").append(item.getLowalch()).append("gp");
 			b.append("</br>");
-			b.append(" High Alch: ").append(item.getHighalch()).append("gp");
+			b.append("High Alch: ").append(item.getHighalch()).append("gp");
 			b.append("</br>");
 		}
 
@@ -240,46 +240,46 @@ public class ItemInfoOverlay extends Overlay
 		{
 			if (item.isMembers())
 			{
-				b.append(" Members Only");
+				b.append("Members Only");
 			}
 			else
 			{
-				b.append(" Free To Play");
+				b.append("Free To Play");
 			}
 			b.append("</br>");
 		}
 
 		if (!item.isTradeable() && config.showIsTradable())
 		{
-			b.append(" Not Tradeable");
+			b.append("Not Tradeable");
 			b.append("</br>");
 		}
 
 		if (config.showIsQuestItem() && item.getQuest_item() != null && item.getQuest_item())
 		{
-			b.append(" Quest Item");
+			b.append("Quest Item");
 			b.append("</br>");
 		}
 
 		if (!item.isNoteable() && config.showIsNoteable())
 		{
-			b.append(" Not Noteable");
+			b.append("Not Noteable");
 			b.append("</br>");
 		}
 
-		if (config.showBonuses())
+		ItemEquipment itemEquipment = item.getEquipment();
+		if (itemEquipment != null)
 		{
-			ItemEquipment itemEquipment = item.getEquipment();
-			if (itemEquipment != null)
+			if (config.showBonuses())
 			{
 				if (itemEquipment.getSlot() != null && !itemEquipment.getSlot().isEmpty())
 				{
-					b.append(" Slot: ").append(StringUtils.capitalize(itemEquipment.getSlot())).append("</br>");
+					b.append("Slot: ").append(StringUtils.capitalize(itemEquipment.getSlot())).append("</br>");
 				}
 
 				b.append("</br>");
 
-				b.append(" Bonuses:</br>");
+				b.append("Bonuses:</br>");
 				appendBonus(b, "Attack Stab: ", itemEquipment.getAttack_stab());
 				appendBonus(b, "Attack Slash: ", itemEquipment.getAttack_slash());
 				appendBonus(b, "Attack Crush: ", itemEquipment.getAttack_crush());
@@ -296,17 +296,20 @@ public class ItemInfoOverlay extends Overlay
 				appendBonus(b, "Prayer: ", itemEquipment.getPrayer());
 
 				b.append("</br>");
+			}
 
+			if (config.showRequirements())
+			{
 				if (itemEquipment.getRequirements() != null && !itemEquipment.getRequirements().isEmpty())
 				{
-					b.append(" Requirements:</br>");
+					b.append("Requirements:</br>");
 					for (Map.Entry<String, String> entry : itemEquipment.getRequirements().entrySet())
 					{
 						String key = entry.getKey();
 						String value = entry.getValue();
 						if (key != null && !key.isEmpty() && value != null && !value.isEmpty())
 						{
-							b.append("   ").append(StringUtils.capitalize(key)).append(": ").append(value).append("</br>");
+							b.append("  ").append(StringUtils.capitalize(key)).append(": ").append(value).append("</br>");
 						}
 					}
 				}
@@ -319,7 +322,7 @@ public class ItemInfoOverlay extends Overlay
 			b = new StringBuilder();
 			if (item.getExamine() != null)
 			{
-				b.append(" ").append(item.getExamine());
+				b.append(item.getExamine());
 				b.append("</br>");
 			}
 		}
