@@ -28,6 +28,7 @@ import com.google.inject.Inject;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
+
 import net.runelite.api.Client;
 import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.InventoryID;
@@ -91,7 +92,9 @@ public class ItemStatOverlay extends Overlay
 
 		if (widget == null || (group != WidgetInfo.INVENTORY.getGroupId() &&
 			group != WidgetInfo.EQUIPMENT.getGroupId() &&
-			group != WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId()))
+			group != WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId() &&
+			(config.showStatsInBank() && group != WidgetInfo.BANK_ITEM_CONTAINER.getGroupId() &&
+			group != WidgetInfo.BANK_INVENTORY_ITEMS_CONTAINER.getGroupId())))
 		{
 			return null;
 		}
@@ -106,7 +109,9 @@ public class ItemStatOverlay extends Overlay
 				itemId = widgetItem.getItemId();
 			}
 		}
-		else if (group == WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId())
+		else if (group == WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId() ||
+				group == WidgetInfo.BANK_ITEM_CONTAINER.getGroupId() ||
+				group == WidgetInfo.BANK_INVENTORY_ITEMS_CONTAINER.getGroupId())
 		{
 			final Widget widgetItem = widget.getChild(entry.getParam0());
 			if (widgetItem != null)
@@ -156,33 +161,52 @@ public class ItemStatOverlay extends Overlay
 	}
 
 	private String getChangeString(
+			final String label,
+			final double value,
+			final boolean inverse,
+			final boolean showPercent)
+	{
+		return getChangeString(label, value, value, inverse, showPercent);
+	}
+
+	private String getChangeString(
 		final String label,
 		final double value,
+		final double originalValue,
 		final boolean inverse,
 		final boolean showPercent)
 	{
+		double v = value;
 		final Color plus = Positivity.getColor(config, Positivity.BETTER_UNCAPPED);
 		final Color minus = Positivity.getColor(config, Positivity.WORSE);
 
-		if (value == 0)
+		boolean hasChanged = v != 0;
+		if (!hasChanged && originalValue == v)
 		{
 			return "";
 		}
 
 		final Color color;
 
-		if (inverse)
+
+		if (!hasChanged && originalValue != v)
 		{
-			color = value > 0 ? minus : plus;
+			color = Positivity.getColor(config, Positivity.NO_CHANGE);
+			v = originalValue;
+		}
+		else if (inverse)
+		{
+			color = v > 0 ? minus : plus;
 		}
 		else
 		{
-			color = value > 0 ? plus : minus;
+			color = v > 0 ? plus : minus;
 		}
 
-		final String prefix = value > 0 ? "+" : "";
+		final String prefix = hasChanged && v > 0 ? "+" : "";
 		final String suffix = showPercent ? "%" : "";
-		final String valueString = (int)value == value ? String.valueOf((int)value) : String.valueOf(value);
+		final String valueString = (int)v == v ? String.valueOf((int)v) : String.valueOf(v);
+
 		return label + ": " + ColorUtil.wrapWithColorTag(prefix + valueString + suffix, color) + "</br>";
 	}
 
@@ -195,13 +219,13 @@ public class ItemStatOverlay extends Overlay
 		}
 
 		ItemStats other = null;
-		final ItemEquipmentStats currentEquipment = s.getEquipment();
+		final ItemEquipmentStats ce = s.getEquipment();
 
 		ItemContainer c = client.getItemContainer(InventoryID.EQUIPMENT);
-		if (s.isEquipable() && currentEquipment != null && c != null)
+		if (s.isEquipable() && ce != null && c != null)
 		{
 			final Item[] items = c.getItems();
-			final int slot = currentEquipment.getSlot();
+			final int slot = ce.getSlot();
 
 			if (slot != -1 && slot < items.length)
 			{
@@ -222,32 +246,32 @@ public class ItemStatOverlay extends Overlay
 		final ItemStats subtracted = s.subtract(other);
 		final ItemEquipmentStats e = subtracted.getEquipment();
 
-		if (subtracted.isEquipable() && e != null)
+		if (subtracted.isEquipable() && e != null && ce != null)
 		{
-			b.append(getChangeString("Prayer", e.getPrayer(), false, false));
-			b.append(getChangeString("Speed", e.getAspeed(), true, false));
-			b.append(getChangeString("Melee Str", e.getStr(), false, false));
-			b.append(getChangeString("Range Str", e.getRstr(), false, false));
-			b.append(getChangeString("Magic Dmg", e.getMdmg(), false, true));
+			b.append(getChangeString("Prayer", e.getPrayer(), ce.getPrayer(), false, false));
+			b.append(getChangeString("Speed", e.getAspeed(), ce.getAspeed(), true, false));
+			b.append(getChangeString("Melee Str", e.getStr(), ce.getStr(), false, false));
+			b.append(getChangeString("Range Str", e.getRstr(), ce.getRstr(), false, false));
+			b.append(getChangeString("Magic Dmg", e.getMdmg(), ce.getMdmg(), false, true));
 
-			if (e.getAstab() != 0 || e.getAslash() != 0 || e.getAcrush() != 0 || e.getAmagic() != 0 || e.getArange() != 0)
+			if (ce.getAstab() != 0 || ce.getAslash() != 0 || ce.getAcrush() != 0 || ce.getAmagic() != 0 || ce.getArange() != 0)
 			{
 				b.append(ColorUtil.wrapWithColorTag("Attack Bonus</br>", JagexColors.MENU_TARGET));
-				b.append(getChangeString("Stab", e.getAstab(), false, false));
-				b.append(getChangeString("Slash", e.getAslash(), false, false));
-				b.append(getChangeString("Crush", e.getAcrush(), false, false));
-				b.append(getChangeString("Magic", e.getAmagic(), false, false));
-				b.append(getChangeString("Range", e.getArange(), false, false));
+				b.append(getChangeString("Stab", e.getAstab(), ce.getAstab(), false, false));
+				b.append(getChangeString("Slash", e.getAslash(), ce.getAslash(), false, false));
+				b.append(getChangeString("Crush", e.getAcrush(), ce.getAcrush(), false, false));
+				b.append(getChangeString("Magic", e.getAmagic(), ce.getAmagic(), false, false));
+				b.append(getChangeString("Range", e.getArange(), ce.getArange(), false, false));
 			}
 
-			if (e.getDstab() != 0 || e.getDslash() != 0 || e.getDcrush() != 0 || e.getDmagic() != 0 || e.getDrange() != 0)
+			if (ce.getDstab() != 0 || ce.getDslash() != 0 || ce.getDcrush() != 0 || ce.getDmagic() != 0 || ce.getDrange() != 0)
 			{
 				b.append(ColorUtil.wrapWithColorTag("Defence Bonus</br>", JagexColors.MENU_TARGET));
-				b.append(getChangeString("Stab", e.getDstab(), false, false));
-				b.append(getChangeString("Slash", e.getDslash(), false, false));
-				b.append(getChangeString("Crush", e.getDcrush(), false, false));
-				b.append(getChangeString("Magic", e.getDmagic(), false, false));
-				b.append(getChangeString("Range", e.getDrange(), false, false));
+				b.append(getChangeString("Stab", e.getDstab(), ce.getDstab(), false, false));
+				b.append(getChangeString("Slash", e.getDslash(), ce.getDslash(), false, false));
+				b.append(getChangeString("Crush", e.getDcrush(), ce.getDcrush(), false, false));
+				b.append(getChangeString("Magic", e.getDmagic(), ce.getDmagic(), false, false));
+				b.append(getChangeString("Range", e.getDrange(), ce.getDrange(), false, false));
 			}
 		}
 
