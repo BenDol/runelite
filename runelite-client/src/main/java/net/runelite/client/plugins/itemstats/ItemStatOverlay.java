@@ -91,7 +91,9 @@ public class ItemStatOverlay extends Overlay
 
 		if (widget == null || (group != WidgetInfo.INVENTORY.getGroupId() &&
 			group != WidgetInfo.EQUIPMENT.getGroupId() &&
-			group != WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId()))
+			group != WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId() &&
+			(config.showStatsInBank() && group != WidgetInfo.BANK_ITEM_CONTAINER.getGroupId() &&
+			group != WidgetInfo.BANK_INVENTORY_ITEMS_CONTAINER.getGroupId())))
 		{
 			return null;
 		}
@@ -106,12 +108,18 @@ public class ItemStatOverlay extends Overlay
 				itemId = widgetItem.getItemId();
 			}
 		}
-		else if (group == WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId())
+		else if (group == WidgetInfo.EQUIPMENT_INVENTORY_ITEMS_CONTAINER.getGroupId() ||
+				group == WidgetInfo.BANK_ITEM_CONTAINER.getGroupId() ||
+				group == WidgetInfo.BANK_INVENTORY_ITEMS_CONTAINER.getGroupId())
 		{
-			final Widget widgetItem = widget.getChild(entry.getParam0());
-			if (widgetItem != null)
+			int index = entry.getParam0();
+			if (index > -1)
 			{
-				itemId = widgetItem.getItemId();
+				final Widget widgetItem = widget.getChild(index);
+				if (widgetItem != null)
+				{
+					itemId = widgetItem.getItemId();
+				}
 			}
 		}
 
@@ -156,7 +164,6 @@ public class ItemStatOverlay extends Overlay
 	}
 
 	private String getChangeString(
-		final String label,
 		final double value,
 		final boolean inverse,
 		final boolean showPercent)
@@ -183,25 +190,57 @@ public class ItemStatOverlay extends Overlay
 		final String prefix = value > 0 ? "+" : "";
 		final String suffix = showPercent ? "%" : "";
 		final String valueString = (int)value == value ? String.valueOf((int)value) : String.valueOf(value);
-		return label + ": " + ColorUtil.wrapWithColorTag(prefix + valueString + suffix, color) + "</br>";
+		return ColorUtil.wrapWithColorTag(prefix + valueString + suffix, color);
+	}
+
+	private String buildStatRow(
+		final String label,
+		final double value,
+		final double diffValue,
+		final boolean inverse,
+		final boolean showPercent)
+	{
+		return buildStatRow(label, value, diffValue, inverse, showPercent, true);
+	}
+
+	private String buildStatRow(
+		final String label,
+		final double value,
+		final double diffValue,
+		final boolean inverse,
+		final boolean showPercent,
+		final boolean showBase)
+	{
+		final StringBuilder b = new StringBuilder();
+
+		if (value != 0 || diffValue != 0)
+		{
+			final String changeStr = getChangeString(diffValue, inverse, showPercent);
+
+			if (config.alwaysShowBaseStats() && showBase)
+			{
+				final String valueStr = (int)value == value ? String.valueOf((int)value) : String.valueOf(value);
+				b.append(label).append(": ").append(valueStr).append((!changeStr.isEmpty() ? " (" + changeStr + ") " : "")).append("</br>");
+			}
+			else if (!changeStr.isEmpty())
+			{
+				b.append(label).append(": ").append(changeStr).append("</br>");
+			}
+		}
+
+		return b.toString();
 	}
 
 	private String buildStatBonusString(ItemStats s)
 	{
-		final StringBuilder b = new StringBuilder();
-		if (config.showWeight())
-		{
-			b.append(getChangeString("Weight", s.getWeight(), true, false));
-		}
-
 		ItemStats other = null;
-		final ItemEquipmentStats currentEquipment = s.getEquipment();
+		final ItemEquipmentStats ce = s.getEquipment();
 
 		ItemContainer c = client.getItemContainer(InventoryID.EQUIPMENT);
-		if (s.isEquipable() && currentEquipment != null && c != null)
+		if (s.isEquipable() && ce != null && c != null)
 		{
 			final Item[] items = c.getItems();
-			final int slot = currentEquipment.getSlot();
+			final int slot = ce.getSlot();
 
 			if (slot != -1 && slot < items.length)
 			{
@@ -222,32 +261,44 @@ public class ItemStatOverlay extends Overlay
 		final ItemStats subtracted = s.subtract(other);
 		final ItemEquipmentStats e = subtracted.getEquipment();
 
-		if (subtracted.isEquipable() && e != null)
-		{
-			b.append(getChangeString("Prayer", e.getPrayer(), false, false));
-			b.append(getChangeString("Speed", e.getAspeed(), true, false));
-			b.append(getChangeString("Melee Str", e.getStr(), false, false));
-			b.append(getChangeString("Range Str", e.getRstr(), false, false));
-			b.append(getChangeString("Magic Dmg", e.getMdmg(), false, true));
+		final StringBuilder b = new StringBuilder();
 
-			if (e.getAstab() != 0 || e.getAslash() != 0 || e.getAcrush() != 0 || e.getAmagic() != 0 || e.getArange() != 0)
+		if (config.showWeight())
+		{
+			double sw = config.alwaysShowBaseStats() ? subtracted.getWeight() : s.getWeight();
+			b.append(buildStatRow("Weight", s.getWeight(), sw, true, false, s.isEquipable()));
+		}
+
+		if (subtracted.isEquipable() && e != null && ce != null)
+		{
+			b.append(buildStatRow("Prayer", ce.getPrayer(), e.getPrayer(), false, false));
+			b.append(buildStatRow("Speed", ce.getAspeed(), e.getAspeed(), true, false));
+			b.append(buildStatRow("Melee Str", ce.getStr(), e.getStr(), false, false));
+			b.append(buildStatRow("Range Str", ce.getRstr(), e.getRstr(), false, false));
+			b.append(buildStatRow("Magic Dmg", ce.getMdmg(), e.getMdmg(), false, true));
+
+			final StringBuilder abb = new StringBuilder();
+			abb.append(buildStatRow("Stab", ce.getAspeed(), e.getAspeed(), false, false));
+			abb.append(buildStatRow("Slash", ce.getAslash(), e.getAslash(), false, false));
+			abb.append(buildStatRow("Crush", ce.getAcrush(), e.getAcrush(), false, false));
+			abb.append(buildStatRow("Magic", ce.getAmagic(), e.getAmagic(), false, false));
+			abb.append(buildStatRow("Range", ce.getArange(), e.getArange(), false, false));
+
+			if (abb.length() > 0)
 			{
-				b.append(ColorUtil.wrapWithColorTag("Attack Bonus</br>", JagexColors.MENU_TARGET));
-				b.append(getChangeString("Stab", e.getAstab(), false, false));
-				b.append(getChangeString("Slash", e.getAslash(), false, false));
-				b.append(getChangeString("Crush", e.getAcrush(), false, false));
-				b.append(getChangeString("Magic", e.getAmagic(), false, false));
-				b.append(getChangeString("Range", e.getArange(), false, false));
+				b.append(ColorUtil.wrapWithColorTag("Attack Bonus</br>", JagexColors.MENU_TARGET)).append(abb);
 			}
 
-			if (e.getDstab() != 0 || e.getDslash() != 0 || e.getDcrush() != 0 || e.getDmagic() != 0 || e.getDrange() != 0)
+			final StringBuilder dbb = new StringBuilder();
+			dbb.append(buildStatRow("Stab", ce.getDstab(), e.getDstab(), false, false));
+			dbb.append(buildStatRow("Slash", ce.getDslash(), e.getDslash(), false, false));
+			dbb.append(buildStatRow("Crush", ce.getDcrush(), e.getDcrush(), false, false));
+			dbb.append(buildStatRow("Magic", ce.getDmagic(), e.getDmagic(), false, false));
+			dbb.append(buildStatRow("Range", ce.getDrange(), e.getDrange(), false, false));
+
+			if (dbb.length() > 0)
 			{
-				b.append(ColorUtil.wrapWithColorTag("Defence Bonus</br>", JagexColors.MENU_TARGET));
-				b.append(getChangeString("Stab", e.getDstab(), false, false));
-				b.append(getChangeString("Slash", e.getDslash(), false, false));
-				b.append(getChangeString("Crush", e.getDcrush(), false, false));
-				b.append(getChangeString("Magic", e.getDmagic(), false, false));
-				b.append(getChangeString("Range", e.getDrange(), false, false));
+				b.append(ColorUtil.wrapWithColorTag("Defence Bonus</br>", JagexColors.MENU_TARGET)).append(dbb);
 			}
 		}
 
