@@ -112,10 +112,14 @@ public class ItemStatOverlay extends Overlay
 				group == WidgetInfo.BANK_ITEM_CONTAINER.getGroupId() ||
 				group == WidgetInfo.BANK_INVENTORY_ITEMS_CONTAINER.getGroupId())
 		{
-			final Widget widgetItem = widget.getChild(entry.getParam0());
-			if (widgetItem != null)
+			int index = entry.getParam0();
+			if (index > -1)
 			{
-				itemId = widgetItem.getItemId();
+				final Widget widgetItem = widget.getChild(index);
+				if (widgetItem != null)
+				{
+					itemId = widgetItem.getItemId();
+				}
 			}
 		}
 
