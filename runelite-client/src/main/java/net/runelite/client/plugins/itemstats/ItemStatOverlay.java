@@ -208,9 +208,9 @@ public class ItemStatOverlay extends Overlay
 		final boolean dontShowBase)
 	{
 		StringBuilder b = new StringBuilder();
-		String changeStr = getChangeString(diffValue, inverse, showPercent);
 		if (value != 0 || diffValue != 0)
 		{
+			String changeStr = getChangeString(diffValue, inverse, showPercent);
 			if (config.alwaysShowBaseStats() && !dontShowBase)
 			{
 				final String valueStr = (int)value == value ? String.valueOf((int)value) : String.valueOf(value);
@@ -226,12 +226,6 @@ public class ItemStatOverlay extends Overlay
 
 	private String buildStatBonusString(ItemStats s)
 	{
-		final StringBuilder b = new StringBuilder();
-		if (config.showWeight())
-		{
-			b.append(buildStatRow("Weight", s.getWeight(), s.getWeight(), true, false, !s.isEquipable()));
-		}
-
 		ItemStats other = null;
 		final ItemEquipmentStats ce = s.getEquipment();
 
@@ -260,6 +254,12 @@ public class ItemStatOverlay extends Overlay
 		final ItemStats subtracted = s.subtract(other);
 		final ItemEquipmentStats e = subtracted.getEquipment();
 
+		final StringBuilder b = new StringBuilder();
+		if (config.showWeight())
+		{
+			b.append(buildStatRow("Weight", s.getWeight(), subtracted.getWeight(), true, false, !s.isEquipable()));
+		}
+
 		if (subtracted.isEquipable() && e != null && ce != null)
 		{
 			b.append(buildStatRow("Prayer", ce.getPrayer(), e.getPrayer(), false, false));
@@ -268,24 +268,28 @@ public class ItemStatOverlay extends Overlay
 			b.append(buildStatRow("Range Str", ce.getRstr(), e.getRstr(), false, false));
 			b.append(buildStatRow("Magic Dmg", ce.getMdmg(), e.getMdmg(), false, true));
 
-			if (ce.getAstab() != 0 || ce.getAslash() != 0 || ce.getAcrush() != 0 || ce.getAmagic() != 0 || ce.getArange() != 0)
+			StringBuilder abb = new StringBuilder();
+			abb.append(buildStatRow("Stab", ce.getAspeed(), e.getAspeed(), false, false));
+			abb.append(buildStatRow("Slash", ce.getAslash(), e.getAslash(), false, false));
+			abb.append(buildStatRow("Crush", ce.getAcrush(), e.getAcrush(), false, false));
+			abb.append(buildStatRow("Magic", ce.getAmagic(), e.getAmagic(), false, false));
+			abb.append(buildStatRow("Range", ce.getArange(), e.getArange(), false, false));
+
+			if (abb.length() > 0)
 			{
-				b.append(ColorUtil.wrapWithColorTag("Attack Bonus</br>", JagexColors.MENU_TARGET));
-				b.append(buildStatRow("Stab", ce.getAspeed(), e.getAspeed(), false, false));
-				b.append(buildStatRow("Slash", ce.getAslash(), e.getAslash(), false, false));
-				b.append(buildStatRow("Crush", ce.getAcrush(), e.getAcrush(), false, false));
-				b.append(buildStatRow("Magic", ce.getAmagic(), e.getAmagic(), false, false));
-				b.append(buildStatRow("Range", ce.getArange(), e.getArange(), false, false));
+				b.append(ColorUtil.wrapWithColorTag("Attack Bonus</br>", JagexColors.MENU_TARGET)).append(abb);
 			}
 
-			if (ce.getDstab() != 0 || ce.getDslash() != 0 || ce.getDcrush() != 0 || ce.getDmagic() != 0 || ce.getDrange() != 0)
+			StringBuilder dbb = new StringBuilder();
+			dbb.append(buildStatRow("Stab", ce.getDstab(), e.getDstab(), false, false));
+			dbb.append(buildStatRow("Slash", ce.getDslash(), e.getDslash(), false, false));
+			dbb.append(buildStatRow("Crush", ce.getDcrush(), e.getDcrush(), false, false));
+			dbb.append(buildStatRow("Magic", ce.getDmagic(), e.getDmagic(), false, false));
+			dbb.append(buildStatRow("Range", ce.getDrange(), e.getDrange(), false, false));
+
+			if (dbb.length() > 0)
 			{
-				b.append(ColorUtil.wrapWithColorTag("Defence Bonus</br>", JagexColors.MENU_TARGET));
-				b.append(buildStatRow("Stab", ce.getDstab(), e.getDstab(), false, false));
-				b.append(buildStatRow("Slash", ce.getDslash(), e.getDslash(), false, false));
-				b.append(buildStatRow("Crush", ce.getDcrush(), e.getDcrush(), false, false));
-				b.append(buildStatRow("Magic", ce.getDmagic(), e.getDmagic(), false, false));
-				b.append(buildStatRow("Range", ce.getDrange(), e.getDrange(), false, false));
+				b.append(ColorUtil.wrapWithColorTag("Defence Bonus</br>", JagexColors.MENU_TARGET)).append(dbb);
 			}
 		}
 
