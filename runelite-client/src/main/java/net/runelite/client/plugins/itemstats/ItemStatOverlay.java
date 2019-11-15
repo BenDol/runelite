@@ -257,7 +257,8 @@ public class ItemStatOverlay extends Overlay
 		final StringBuilder b = new StringBuilder();
 		if (config.showWeight())
 		{
-			b.append(buildStatRow("Weight", s.getWeight(), subtracted.getWeight(), true, false, !s.isEquipable()));
+			double sw = config.alwaysShowBaseStats() ? subtracted.getWeight() : s.getWeight();
+			b.append(buildStatRow("Weight", s.getWeight(), sw, true, false, !s.isEquipable()));
 		}
 
 		if (subtracted.isEquipable() && e != null && ce != null)
