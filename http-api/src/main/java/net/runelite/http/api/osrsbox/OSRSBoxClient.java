@@ -42,11 +42,12 @@ public class OSRSBoxClient
 {
 	private static final Logger logger = LoggerFactory.getLogger(OSRSBoxClient.class);
 
-	private static final String ROOT_URL = "https://www.osrsbox.com/osrsbox-db/items-json";
+	private static final String ROOT_URL = "https://www.osrsbox.com/osrsbox-db";
 
 	public static ItemInfo getItem(long id) throws ItemNotFoundException
 	{
 		HttpUrl url = getApiBase().newBuilder()
+			.addPathSegment("items-json")
 			.addPathSegment(id + ".json")
 			.build();
 
@@ -73,7 +74,7 @@ public class OSRSBoxClient
 		}
 	}
 
-	public static String getJson(long id) throws ItemNotFoundException
+	public static String getJson(Object id) throws ItemNotFoundException
 	{
 		HttpUrl url = getApiBase().newBuilder()
 			.addPathSegment(id + ".json")
@@ -89,15 +90,15 @@ public class OSRSBoxClient
 		{
 			if (!response.isSuccessful())
 			{
-				logger.debug("Error looking up item {}: {}", id, response.message());
-				throw new ItemNotFoundException(id);
+				logger.debug("Error looking up item json {}: {}", id, response.message());
+				throw new RuntimeException("");
 			}
 
 			return response.body().string();
 		}
 		catch (Exception ex)
 		{
-			throw new ItemNotFoundException(id, ex);
+			throw new RuntimeException("", ex);
 		}
 	}
 

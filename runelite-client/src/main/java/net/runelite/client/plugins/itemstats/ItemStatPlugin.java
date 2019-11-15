@@ -31,6 +31,9 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
 import java.awt.FontMetrics;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -63,8 +66,13 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.JagexColors;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.QuantityFormatter;
+import net.runelite.http.api.RuneLiteAPI;
+import net.runelite.http.api.item.ItemClient;
+import net.runelite.http.api.item.ItemEquipment;
 import net.runelite.http.api.item.ItemEquipmentStats;
+import net.runelite.http.api.item.ItemInfo;
 import net.runelite.http.api.item.ItemStats;
+import net.runelite.http.api.osrsbox.OSRSBoxClient;
 
 @PluginDescriptor(
 	name = "Item Stats",
@@ -109,10 +117,44 @@ public class ItemStatPlugin extends Plugin
 		binder.bind(ItemStatChangesService.class).to(ItemStatChangesServiceImpl.class);
 	}
 
+	// https://www.osrsbox.com/osrsbox-db/items-complete.json
+	// https://static.runelite.net/item/stats.ids.min.json
+
+	@Inject
+	private ItemClient itemClient;
+
+	static class OBItems extends HashMap<String, ItemInfo> {}
+
 	@Override
 	protected void startUp() throws Exception
 	{
 		overlayManager.add(overlay);
+
+		/////////////////////////
+		String json = OSRSBoxClient.getJson("items-complete");
+		OBItems obitems = RuneLiteAPI.GSON.fromJson(json, OBItems.class);
+
+		Map<Integer, ItemStats> itemStats = itemClient.getStats();
+
+		for (Map.Entry<Integer, ItemStats> entry : itemStats.entrySet()) {
+			ItemStats stats = entry.getValue();
+			ItemInfo info = obitems.get(String.valueOf(entry.getKey()));
+			if (info != null) {
+				ItemEquipment eq = info.getEquipment();
+				if (eq != null) {
+					Map<String, String> req = eq.getRequirements();
+					if (req != null && !req.isEmpty()) {
+						stats = new ItemStats(stats.isQuest(), stats.isEquipable(), stats.getWeight(), stats.getEquipment(), req);
+						itemStats.put(entry.getKey(), stats);
+					}
+				}
+			} else {
+				System.out.println("skipping: " + entry.getKey());
+			}
+		}
+
+		String finalJson = RuneLiteAPI.GSON.toJson(itemStats);
+		System.out.println(finalJson);
 	}
 
 	@Override
