@@ -200,7 +200,7 @@ public class ItemStatOverlay extends Overlay
 		final boolean inverse,
 		final boolean showPercent)
 	{
-		return buildStatRow(label, value, diffValue, inverse, showPercent, false);
+		return buildStatRow(label, value, diffValue, inverse, showPercent, true);
 	}
 
 	private String buildStatRow(
@@ -209,13 +209,15 @@ public class ItemStatOverlay extends Overlay
 		final double diffValue,
 		final boolean inverse,
 		final boolean showPercent,
-		final boolean dontShowBase)
+		final boolean showBase)
 	{
-		StringBuilder b = new StringBuilder();
+		final StringBuilder b = new StringBuilder();
+
 		if (value != 0 || diffValue != 0)
 		{
-			String changeStr = getChangeString(diffValue, inverse, showPercent);
-			if (config.alwaysShowBaseStats() && !dontShowBase)
+			final String changeStr = getChangeString(diffValue, inverse, showPercent);
+
+			if (config.alwaysShowBaseStats() && showBase)
 			{
 				final String valueStr = (int)value == value ? String.valueOf((int)value) : String.valueOf(value);
 				b.append(label).append(": ").append(valueStr).append((!changeStr.isEmpty() ? " (" + changeStr + ") " : "")).append("</br>");
@@ -225,6 +227,7 @@ public class ItemStatOverlay extends Overlay
 				b.append(label).append(": ").append(changeStr).append("</br>");
 			}
 		}
+
 		return b.toString();
 	}
 
@@ -259,10 +262,11 @@ public class ItemStatOverlay extends Overlay
 		final ItemEquipmentStats e = subtracted.getEquipment();
 
 		final StringBuilder b = new StringBuilder();
+
 		if (config.showWeight())
 		{
 			double sw = config.alwaysShowBaseStats() ? subtracted.getWeight() : s.getWeight();
-			b.append(buildStatRow("Weight", s.getWeight(), sw, true, false, !s.isEquipable()));
+			b.append(buildStatRow("Weight", s.getWeight(), sw, true, false, s.isEquipable()));
 		}
 
 		if (subtracted.isEquipable() && e != null && ce != null)
@@ -273,7 +277,7 @@ public class ItemStatOverlay extends Overlay
 			b.append(buildStatRow("Range Str", ce.getRstr(), e.getRstr(), false, false));
 			b.append(buildStatRow("Magic Dmg", ce.getMdmg(), e.getMdmg(), false, true));
 
-			StringBuilder abb = new StringBuilder();
+			final StringBuilder abb = new StringBuilder();
 			abb.append(buildStatRow("Stab", ce.getAspeed(), e.getAspeed(), false, false));
 			abb.append(buildStatRow("Slash", ce.getAslash(), e.getAslash(), false, false));
 			abb.append(buildStatRow("Crush", ce.getAcrush(), e.getAcrush(), false, false));
@@ -285,7 +289,7 @@ public class ItemStatOverlay extends Overlay
 				b.append(ColorUtil.wrapWithColorTag("Attack Bonus</br>", JagexColors.MENU_TARGET)).append(abb);
 			}
 
-			StringBuilder dbb = new StringBuilder();
+			final StringBuilder dbb = new StringBuilder();
 			dbb.append(buildStatRow("Stab", ce.getDstab(), e.getDstab(), false, false));
 			dbb.append(buildStatRow("Slash", ce.getDslash(), e.getDslash(), false, false));
 			dbb.append(buildStatRow("Crush", ce.getDcrush(), e.getDcrush(), false, false));
