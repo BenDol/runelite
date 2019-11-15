@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.util.RunnableExceptionLogger;
 
 @Singleton
 @Slf4j
@@ -63,7 +62,7 @@ public class ClientSessionManager
 			log.warn("error opening session", ex);
 		}
 
-		scheduledFuture = executorService.scheduleWithFixedDelay(RunnableExceptionLogger.wrap(this::ping), 1, 10, TimeUnit.MINUTES);
+		scheduledFuture = executorService.scheduleWithFixedDelay(this::ping, 1, 10, TimeUnit.MINUTES);
 	}
 
 	public void shutdown()
@@ -97,8 +96,7 @@ public class ClientSessionManager
 		}
 		catch (IOException ex)
 		{
-			log.warn("unable to open session", ex);
-			return;
+			log.warn(null, ex);
 		}
 
 		try

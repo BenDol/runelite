@@ -53,7 +53,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.GraphicChanged;
 import net.runelite.api.events.ItemContainerChanged;
-import net.runelite.api.events.PlayerDeath;
+import net.runelite.api.events.LocalPlayerDeath;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.VarbitChanged;
@@ -886,12 +886,9 @@ public class TimersPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onPlayerDeath(PlayerDeath playerDeath)
+	public void onLocalPlayerDeath(LocalPlayerDeath event)
 	{
-		if (playerDeath.getPlayer() == client.getLocalPlayer())
-		{
-			infoBoxManager.removeIf(t -> t instanceof TimerTimer && ((TimerTimer) t).getTimer().isRemovedOnDeath());
-		}
+		infoBoxManager.removeIf(t -> t instanceof TimerTimer && ((TimerTimer) t).getTimer().isRemovedOnDeath());
 	}
 
 	private TimerTimer createGameTimer(final GameTimer timer)

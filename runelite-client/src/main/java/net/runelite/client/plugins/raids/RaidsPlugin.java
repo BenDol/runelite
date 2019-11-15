@@ -320,9 +320,7 @@ public class RaidsPlugin extends Plugin
 				}
 
 				raid.updateLayout(layout);
-				RaidRoom[] rooms = raid.getCombatRooms();
-				RotationSolver.solve(rooms);
-				raid.setCombatRooms(rooms);
+				RotationSolver.solve(raid.getCombatRooms());
 				overlay.setScoutOverlayShown(true);
 
 				if (config.layoutMessage())
