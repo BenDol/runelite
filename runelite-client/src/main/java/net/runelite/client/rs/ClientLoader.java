@@ -39,6 +39,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.channels.Channels;
@@ -59,8 +60,12 @@ import javafx.util.Pair;
 import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
+import javassist.CtConstructor;
+import javassist.CtField;
+import javassist.CtField.Initializer;
 import javassist.CtMethod;
 import javassist.LoaderClassPath;
+import javassist.Modifier;
 import javassist.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -68,10 +73,14 @@ import net.runelite.client.RuneLite;
 
 import static javassist.CtClass.intType;
 import static net.runelite.client.RuneLite.GAME_HOST;
+import static net.runelite.client.RuneLite.GAME_RSA_MOD;
 import static net.runelite.client.RuneLite.GAME_SSL_DISABLED;
 import static net.runelite.client.rs.ClientUpdateCheckMode.AUTO;
 import static net.runelite.client.rs.ClientUpdateCheckMode.NONE;
 import static net.runelite.client.rs.ClientUpdateCheckMode.VANILLA;
+
+import net.runelite.client.rs.loaders.Client181ClassLoader;
+import net.runelite.client.rs.loaders.Client185ClassLoader;
 import net.runelite.client.ui.FatalErrorDialog;
 import net.runelite.client.ui.SplashScreen;
 import net.runelite.http.api.RuneLiteAPI;
@@ -399,66 +408,10 @@ public class ClientLoader implements Supplier<Applet>
 
 	private Applet loadClient(URL url) throws ClassNotFoundException, IllegalAccessException, InstantiationException
 	{
-		ClassPool cp = ClassPool.getDefault();
-
-		URLClassLoader rsClassLoader = new URLClassLoader(new URL[]{url}) {
-			@Override
-			@SuppressWarnings("unchecked")
-			protected Class<?> findClass(String name) throws ClassNotFoundException {
-				if (name.equals("ff")) {
-					cp.appendClassPath(new LoaderClassPath(new URLClassLoader(new URL[]{url})));
-					try {
-						CtClass cc = cp.get(name);
-						CtClass object = cp.get("java.lang.Object");
-
-						Pair<String, Pair<CtClass[], int[]>>[] methodDefs = new Pair[] {
-							new Pair<>("vh", new Pair<>(new CtClass[]{cc, intType, intType, intType, object, intType}, new int[] {3, 5})),
-							new Pair<>("nu", new Pair<>(new CtClass[]{cc, intType, intType, intType, object}, new int[] {3, 5})),
-							new Pair<>("t",  new Pair<>(new CtClass[]{intType, intType, intType, object, intType}, new int[] {2, 4})),
-							new Pair<>("i",  new Pair<>(new CtClass[]{intType, intType, intType, object}, new int[] {2, 4})),
-							new Pair<>("o",  new Pair<>(new CtClass[]{intType, intType, intType, object}, new int[] {2, 4})),
-							new Pair<>("c",  new Pair<>(new CtClass[]{intType, intType, intType, object}, new int[] {2, 4}))
-						};
-
-						for (Pair<String, Pair<CtClass[], int[]>> methodDef : methodDefs) {
-							Pair<CtClass[], int[]> definition = methodDef.getValue();
-							CtMethod method = cc.getDeclaredMethod(methodDef.getKey(), definition.getKey());
-
-							int port = definition.getValue()[0];
-							int host = definition.getValue()[1];
-
-							if (GAME_HOST != null || GAME_SSL_DISABLED) {
-								method.insertBefore("System.out.println(\"[Hook] Assigning '"+ methodDef.getKey() +"' Port: \" + $"+port+" + \", Host: \" + $"+host+");");
-							}
-
-							if (GAME_HOST != null) {
-								method.insertBefore("if($" + host + " instanceof String) { $" + host + " = \"" + GAME_HOST + "\"; }");
-							}
-
-							if (GAME_SSL_DISABLED) {
-								method.insertBefore("if ($"+port+" == 443) { $"+port+" = 80; }");
-							}
-						}
-
-						byte[] data = cc.toBytecode();
-						if (data == null) {
-							throw new ClassNotFoundException(name);
-						}
-
-						Class<?> clazz = defineClass(name, data, 0, data.length);
-						cc.defrost();
-						return clazz;
-					}
-					catch (NotFoundException | CannotCompileException | IOException e) {
-						e.printStackTrace();
-					}
-				}
-
-				return super.findClass(name);
-			}
-		};
-
 		String initialClass = config.getInitialClass();
+
+		URLClassLoader rsClassLoader = new Client181ClassLoader(new URL[]{url}, initialClass);
+
 		Class<?> clientClass = rsClassLoader.loadClass(initialClass);
 
 		Applet rs = (Applet) clientClass.newInstance();

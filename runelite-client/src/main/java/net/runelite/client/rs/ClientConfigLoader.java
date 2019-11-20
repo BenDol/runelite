@@ -28,6 +28,8 @@ package net.runelite.client.rs;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.Map;
 
 import net.runelite.client.RuneLite;
 import net.runelite.http.api.RuneLiteAPI;
@@ -94,6 +96,14 @@ class ClientConfigLoader
 			}
 		}
 
+		for (Map.Entry<String, String> paramEntry : config.getAppletProperties().entrySet()) {
+			String key = paramEntry.getKey();
+			String value = paramEntry.getValue();
+			if (value.contains("slr.ws")) {
+				config.getAppletProperties().put(key, "http://" + config.getCodeBase());
+				break;
+			}
+		}
 		return config;
 	}
 }
