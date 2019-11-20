@@ -28,6 +28,8 @@ package net.runelite.client.rs;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+
+import net.runelite.client.RuneLite;
 import net.runelite.http.api.RuneLiteAPI;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
@@ -39,11 +41,9 @@ class ClientConfigLoader
 	{
 	}
 
-	private static final String CONFIG_URL = "http://oldschool.runescape.com/jav_config.ws";
-
 	static RSConfig fetch(String host) throws IOException
 	{
-		HttpUrl url = HttpUrl.parse(CONFIG_URL);
+		HttpUrl url = HttpUrl.parse(RuneLite.GAME_CONFIG_URL);
 		if (host != null)
 		{
 			url = url.newBuilder().host(host).build();

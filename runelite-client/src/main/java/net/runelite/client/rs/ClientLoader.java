@@ -54,9 +54,21 @@ import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import javax.swing.SwingUtilities;
+
+import javafx.util.Pair;
+import javassist.CannotCompileException;
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtMethod;
+import javassist.LoaderClassPath;
+import javassist.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.RuneLite;
+
+import static javassist.CtClass.intType;
+import static net.runelite.client.RuneLite.GAME_HOST;
+import static net.runelite.client.RuneLite.GAME_SSL_DISABLED;
 import static net.runelite.client.rs.ClientUpdateCheckMode.AUTO;
 import static net.runelite.client.rs.ClientUpdateCheckMode.NONE;
 import static net.runelite.client.rs.ClientUpdateCheckMode.VANILLA;
@@ -387,7 +399,64 @@ public class ClientLoader implements Supplier<Applet>
 
 	private Applet loadClient(URL url) throws ClassNotFoundException, IllegalAccessException, InstantiationException
 	{
-		URLClassLoader rsClassLoader = new URLClassLoader(new URL[]{url});
+		ClassPool cp = ClassPool.getDefault();
+
+		URLClassLoader rsClassLoader = new URLClassLoader(new URL[]{url}) {
+			@Override
+			@SuppressWarnings("unchecked")
+			protected Class<?> findClass(String name) throws ClassNotFoundException {
+				if (name.equals("ff")) {
+					cp.appendClassPath(new LoaderClassPath(new URLClassLoader(new URL[]{url})));
+					try {
+						CtClass cc = cp.get(name);
+						CtClass object = cp.get("java.lang.Object");
+
+						Pair<String, Pair<CtClass[], int[]>>[] methodDefs = new Pair[] {
+							new Pair<>("vh", new Pair<>(new CtClass[]{cc, intType, intType, intType, object, intType}, new int[] {3, 5})),
+							new Pair<>("nu", new Pair<>(new CtClass[]{cc, intType, intType, intType, object}, new int[] {3, 5})),
+							new Pair<>("t",  new Pair<>(new CtClass[]{intType, intType, intType, object, intType}, new int[] {2, 4})),
+							new Pair<>("i",  new Pair<>(new CtClass[]{intType, intType, intType, object}, new int[] {2, 4})),
+							new Pair<>("o",  new Pair<>(new CtClass[]{intType, intType, intType, object}, new int[] {2, 4})),
+							new Pair<>("c",  new Pair<>(new CtClass[]{intType, intType, intType, object}, new int[] {2, 4}))
+						};
+
+						for (Pair<String, Pair<CtClass[], int[]>> methodDef : methodDefs) {
+							Pair<CtClass[], int[]> definition = methodDef.getValue();
+							CtMethod method = cc.getDeclaredMethod(methodDef.getKey(), definition.getKey());
+
+							int port = definition.getValue()[0];
+							int host = definition.getValue()[1];
+
+							if (GAME_HOST != null || GAME_SSL_DISABLED) {
+								method.insertBefore("System.out.println(\"[Hook] Assigning '"+ methodDef.getKey() +"' Port: \" + $"+port+" + \", Host: \" + $"+host+");");
+							}
+
+							if (GAME_HOST != null) {
+								method.insertBefore("if($" + host + " instanceof String) { $" + host + " = \"" + GAME_HOST + "\"; }");
+							}
+
+							if (GAME_SSL_DISABLED) {
+								method.insertBefore("if ($"+port+" == 443) { $"+port+" = 80; }");
+							}
+						}
+
+						byte[] data = cc.toBytecode();
+						if (data == null) {
+							throw new ClassNotFoundException(name);
+						}
+
+						Class<?> clazz = defineClass(name, data, 0, data.length);
+						cc.defrost();
+						return clazz;
+					}
+					catch (NotFoundException | CannotCompileException | IOException e) {
+						e.printStackTrace();
+					}
+				}
+
+				return super.findClass(name);
+			}
+		};
 
 		String initialClass = config.getInitialClass();
 		Class<?> clientClass = rsClassLoader.loadClass(initialClass);

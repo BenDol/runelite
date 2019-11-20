@@ -78,6 +78,10 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class RuneLite
 {
+	public static final String  GAME_CONFIG_URL = "http://oldschool.runescape.com/jav_config.ws";//"http://127.0.0.1/rs/jav_config.ws";
+	public static final String  GAME_HOST = null;//"127.0.0.1";
+	public static final boolean GAME_SSL_DISABLED = false;
+
 	public static final File RUNELITE_DIR = new File(System.getProperty("user.home"), ".runelite");
 	public static final File CACHE_DIR = new File(RUNELITE_DIR, "cache");
 	public static final File PROFILES_DIR = new File(RUNELITE_DIR, "profiles");
