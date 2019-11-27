@@ -15,49 +15,39 @@ LABEL8:
    iload                  5
    iload                  6
    if_icmplt              LABEL12
-   jump                   LABEL64
+   jump                   LABEL56
 LABEL12:
    iload                  0
    iload                  5
    cc_find               
    iconst                 1
    if_icmpeq              LABEL18
-   jump                   LABEL59
+   jump                   LABEL51
 LABEL18:
    iload                  5
    invoke                 1357
    istore                 3
-   iload                  5
-   invoke                 3236
-   iconst                 1
-   if_icmpeq              LABEL26
-   jump                   LABEL29
-LABEL26:
-   iconst                 10461087
-   istore                 4
-   jump                   LABEL45
-LABEL29:
    iload                  3
    iconst                 2
-   if_icmpeq              LABEL33
-   jump                   LABEL36
-LABEL33:
+   if_icmpeq              LABEL25
+   jump                   LABEL28
+LABEL25:
    iconst                 901389
    istore                 4
-   jump                   LABEL45
-LABEL36:
+   jump                   LABEL37
+LABEL28:
    iload                  3
    iconst                 0
-   if_icmpeq              LABEL40
-   jump                   LABEL43
-LABEL40:
+   if_icmpeq              LABEL32
+   jump                   LABEL35
+LABEL32:
    iconst                 16776960
    istore                 4
-   jump                   LABEL45
-LABEL43:
+   jump                   LABEL37
+LABEL35:
    iconst                 16711680
    istore                 4
-LABEL45:
+LABEL37:
    iload                  4
    cc_setcolour          
    iconst                 85
@@ -72,64 +62,54 @@ LABEL45:
    iload                  4
    sconst                 "Iii"
    cc_setonmouseleave    
-LABEL59:
+LABEL51:
    iload                  5
    iconst                 1
    add                   
    istore                 5
    jump                   LABEL8
-LABEL64:
+LABEL56:
    iconst                 0
    invoke                 2245
    istore                 6
    istore                 5
-LABEL68:
+LABEL60:
    iload                  5
    iload                  6
-   if_icmplt              LABEL72
-   jump                   LABEL124
-LABEL72:
+   if_icmplt              LABEL64
+   jump                   LABEL108
+LABEL64:
    iload                  1
    iload                  5
    cc_find               
    iconst                 1
-   if_icmpeq              LABEL78
-   jump                   LABEL119
-LABEL78:
+   if_icmpeq              LABEL70
+   jump                   LABEL103
+LABEL70:
    iload                  5
    invoke                 1358
    istore                 3
-   iload                  5
-   invoke                 3237
-   iconst                 1
-   if_icmpeq              LABEL86
-   jump                   LABEL89
-LABEL86:
-   iconst                 10461087
-   istore                 4
-   jump                   LABEL105
-LABEL89:
    iload                  3
    iconst                 2
-   if_icmpeq              LABEL93
-   jump                   LABEL96
-LABEL93:
+   if_icmpeq              LABEL77
+   jump                   LABEL80
+LABEL77:
    iconst                 901389
    istore                 4
-   jump                   LABEL105
-LABEL96:
+   jump                   LABEL89
+LABEL80:
    iload                  3
    iconst                 0
-   if_icmpeq              LABEL100
-   jump                   LABEL103
-LABEL100:
+   if_icmpeq              LABEL84
+   jump                   LABEL87
+LABEL84:
    iconst                 16776960
    istore                 4
-   jump                   LABEL105
-LABEL103:
+   jump                   LABEL89
+LABEL87:
    iconst                 16711680
    istore                 4
-LABEL105:
+LABEL89:
    iload                  4
    cc_setcolour          
    iconst                 85
@@ -144,64 +124,54 @@ LABEL105:
    iload                  4
    sconst                 "Iii"
    cc_setonmouseleave    
-LABEL119:
+LABEL103:
    iload                  5
    iconst                 1
    add                   
    istore                 5
-   jump                   LABEL68
-LABEL124:
+   jump                   LABEL60
+LABEL108:
    iconst                 0
    invoke                 2265
    istore                 6
    istore                 5
-LABEL128:
+LABEL112:
    iload                  5
    iload                  6
-   if_icmplt              LABEL132
-   jump                   LABEL184
-LABEL132:
+   if_icmplt              LABEL116
+   jump                   LABEL160
+LABEL116:
    iload                  2
    iload                  5
    cc_find               
    iconst                 1
-   if_icmpeq              LABEL138
-   jump                   LABEL179
-LABEL138:
+   if_icmpeq              LABEL122
+   jump                   LABEL155
+LABEL122:
    iload                  5
    invoke                 1359
    istore                 3
-   iload                  5
-   invoke                 3238
-   iconst                 1
-   if_icmpeq              LABEL146
-   jump                   LABEL149
-LABEL146:
-   iconst                 10461087
-   istore                 4
-   jump                   LABEL165
-LABEL149:
    iload                  3
    iconst                 2
-   if_icmpeq              LABEL153
-   jump                   LABEL156
-LABEL153:
+   if_icmpeq              LABEL129
+   jump                   LABEL132
+LABEL129:
    iconst                 901389
    istore                 4
-   jump                   LABEL165
-LABEL156:
+   jump                   LABEL141
+LABEL132:
    iload                  3
    iconst                 0
-   if_icmpeq              LABEL160
-   jump                   LABEL163
-LABEL160:
+   if_icmpeq              LABEL136
+   jump                   LABEL139
+LABEL136:
    iconst                 16776960
    istore                 4
-   jump                   LABEL165
-LABEL163:
+   jump                   LABEL141
+LABEL139:
    iconst                 16711680
    istore                 4
-LABEL165:
+LABEL141:
    iload                  4
    cc_setcolour          
    iconst                 85
@@ -216,13 +186,13 @@ LABEL165:
    iload                  4
    sconst                 "Iii"
    cc_setonmouseleave    
-LABEL179:
+LABEL155:
    iload                  5
    iconst                 1
    add                   
    istore                 5
-   jump                   LABEL128
-LABEL184:
+   jump                   LABEL112
+LABEL160:
    sconst                 "questProgressUpdated"
    runelite_callback     
    return                

@@ -165,18 +165,16 @@ LABEL40:
    get_varc_int           41
    iconst                 1337
    if_icmpeq              LABEL154
-   jump                   LABEL158
+   jump                   LABEL156
 LABEL154:
    invoke                 2526
    pop_int               
-   clientclock           
-   set_varc_int           384
-LABEL158:
+LABEL156:
    invoke                 1972
    iconst                 1
-   if_icmpeq              LABEL162
-   jump                   LABEL163
-LABEL162:
+   if_icmpeq              LABEL160
+   jump                   LABEL161
+LABEL160:
    invoke                 2581
-LABEL163:
+LABEL161:
    return                
