@@ -286,7 +286,6 @@ public final class NpcID
 	public static final int DWARF = 290;
 	public static final int CHAOS_DWARF = 291;
 	public static final int DWARF_292 = 292;
-	public static final int ADVENTURER_JON = 293;
 	public static final int DWARF_294 = 294;
 	public static final int DWARF_295 = 295;
 	public static final int DWARF_296 = 296;

@@ -9155,7 +9155,7 @@ public final class ItemID
 	public static final int ANKOU_MASK = 20095;
 	public static final int ANKOU_TOP = 20098;
 	public static final int ANKOU_GLOVES = 20101;
-	public static final int ANKOU_LEGGINGS = 20104;
+	public static final int ANKOUS_LEGGINGS = 20104;
 	public static final int ANKOU_SOCKS = 20107;
 	public static final int BOWL_WIG = 20110;
 	public static final int ARCEUUS_HOOD = 20113;
@@ -11291,6 +11291,7 @@ public final class ItemID
 	public static final int MYSTERIOUS_EMBLEM_TIER_4 = 24283;
 	public static final int MYSTERIOUS_EMBLEM_TIER_5 = 24285;
 	public static final int DECORATIVE_EMBLEM = 24287;
+<<<<<<< HEAD
 	public static final int DAGONHAI_HAT = 24288;
 	public static final int DAGONHAI_ROBE_TOP = 24291;
 	public static final int DAGONHAI_ROBE_BOTTOM = 24294;
