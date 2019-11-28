@@ -179,12 +179,12 @@
 			<artifactId>runelite-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
+		<!--dependency>
 			<groupId>net.runelite</groupId>
 			<artifactId>client-patch</artifactId>
-			<version>${project.version}</version>
+			<version>1.5.31</version>
 			<scope>runtime</scope>
-		</dependency>
+		</dependency-->
 		<dependency>
 			<groupId>net.runelite</groupId>
 			<artifactId>http-api</artifactId>
@@ -206,6 +206,21 @@
 			<groupId>org.javassist</groupId>
 			<artifactId>javassist</artifactId>
 			<version>3.26.0-GA</version>
+		</dependency>
+		<dependency>
+			<groupId>io.sigpipe</groupId>
+			<artifactId>jbsdiff</artifactId>
+			<version>1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>de.schlichtherle.truezip</groupId>
+			<artifactId>truezip-file</artifactId>
+			<version>7.7.10</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.6</version>
 		</dependency>
 
 		<dependency>
@@ -246,6 +261,8 @@
 				<directory>src/main/resources</directory>
 				<excludes>
 					<exclude>logback.xml</exclude>
+					<exclude>client.patch.jar</exclude>
+					<exclude>*.bs</exclude>
 				</excludes>
 				<filtering>true</filtering>
 			</resource>
@@ -267,6 +284,8 @@
 						<nonFilteredFileExtension>ttf</nonFilteredFileExtension>
 						<nonFilteredFileExtension>png</nonFilteredFileExtension>
 						<nonFilteredFileExtension>gif</nonFilteredFileExtension>
+						<nonFilteredFileExtension>jar</nonFilteredFileExtension>
+						<nonFilteredFileExtension>bs</nonFilteredFileExtension>
 					</nonFilteredFileExtensions>
 				</configuration>
 			</plugin>

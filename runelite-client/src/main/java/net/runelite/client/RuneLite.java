@@ -81,9 +81,9 @@ public class RuneLite
 	public static final String  GAME_CONFIG_URL = "http://127.0.0.1/rs/jav_config.ws";//"http://oldschool.runescape.com/jav_config.ws";
 	public static final String  GAME_HOST = "127.0.0.1";
 	public static final boolean GAME_SSL_DISABLED = true;
-	public static final String  GAME_RSA_MOD = "a577c795e5bcaa473b750d65c315547999670a613f8857cf186fc0e6fe04169445a1ef26fd750bdad64b1b1dcd2cbff473568c5ccadbefc115f1672672c9a6b85792c023f2721c455bf4c1110486b138f301d4d6c1213143e33556d8145f277fbf3b993e9de21dd23fb617f67e94ced8fefdab01b0e95c68c2f4f5905538853e580dc89035bc01aecfd2e8ce03d8d6daa0751c9c10646f901c2a67c786d5defef072550b2f4a9743a4720d56e51ace8feac21887276c8d211a5092acdb2966f286d3a23058845e1d37ba1d35f1b8dbb186a6ff52f57ab14ae7fb38f093e98f5fa6fab112d121ff4a88f6b953e1641ad830b0506eabd0297a694a12e60cee5cd9";
+	public static final String  GAME_RSA_MOD = "f6fc1b774957b3ea8ac69a9dcb10dae7c073c6ecc523a510fdb1b4778a385d1297fabab2e4dccebfac341fbbae05a977045677f3aa1e42f10f993d359e9dd14ead470b9faf272f565ca923d70807c27b7f1a11d40ec02eabb8e2362e94bd3ac3064a453f5f21b05dee1e08c3d58ef09364da7190daecf3a2df4af6b5f7274c688057f71f25f4c61bea15f3a51f54a3fb9acff34e98f126bd0b610e7ad48b467fdbeef74c121f575d7b96da39741703df3156eb3b7fb05b3f4dba5a37a502b28e14cd5b2c80d038ee54abd13a5f2cf32c35e4c087b3574572898482f914924720a7ba2cbb78fcd8d712d56fc41836f2a1a8666ea3cf4e1bc0f3637152fb78ff3f";
 
-	public static final File RUNELITE_DIR = new File(System.getProperty("user.home"), ".runelite");
+	public static final File RUNELITE_DIR = new File(System.getProperty("user.home"), ".osrslite");
 	public static final File CACHE_DIR = new File(RUNELITE_DIR, "cache");
 	public static final File PROFILES_DIR = new File(RUNELITE_DIR, "profiles");
 	public static final File SCREENSHOT_DIR = new File(RUNELITE_DIR, "screenshots");

@@ -11,15 +11,16 @@ import javassist.NotFoundException;
 
 import java.math.BigInteger;
 import java.net.URL;
+import java.util.Map;
 
 import static javassist.CtClass.byteType;
 import static javassist.CtClass.intType;
 import static net.runelite.client.RuneLite.GAME_RSA_MOD;
 
-public class Client181ClassLoader extends ClientClassLoader {
+public class Client181ClassLoader extends LegacyClientClassLoader {
 
-	public Client181ClassLoader(URL[] urls, String initialClass) {
-		super(urls, initialClass, new NetworkHook(), new RsaHook());
+	public Client181ClassLoader(Map<String, byte[]> classData, String initialClass) {
+		super(classData, initialClass, new NetworkHook(), new RsaHook());
 	}
 
 	@SuppressWarnings({"unchecked"})

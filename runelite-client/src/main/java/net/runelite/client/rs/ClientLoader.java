@@ -26,22 +26,19 @@
  */
 package net.runelite.client.rs;
 
-import com.google.archivepatcher.applier.FileByFileV1DeltaApplier;
 import com.google.common.base.Strings;
 import com.google.common.hash.Hashing;
-import com.google.common.hash.HashingOutputStream;
-import com.google.common.io.Files;
+
 import java.applet.Applet;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.math.BigInteger;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -51,42 +48,38 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import javax.swing.SwingUtilities;
 
-import javafx.util.Pair;
-import javassist.CannotCompileException;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.CtConstructor;
-import javassist.CtField;
-import javassist.CtField.Initializer;
-import javassist.CtMethod;
-import javassist.LoaderClassPath;
-import javassist.Modifier;
-import javassist.NotFoundException;
+import com.google.common.io.ByteStreams;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import io.sigpipe.jbsdiff.InvalidHeaderException;
+import io.sigpipe.jbsdiff.Patch;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.RuneLite;
 
-import static javassist.CtClass.intType;
-import static net.runelite.client.RuneLite.GAME_HOST;
-import static net.runelite.client.RuneLite.GAME_RSA_MOD;
-import static net.runelite.client.RuneLite.GAME_SSL_DISABLED;
 import static net.runelite.client.rs.ClientUpdateCheckMode.AUTO;
 import static net.runelite.client.rs.ClientUpdateCheckMode.NONE;
 import static net.runelite.client.rs.ClientUpdateCheckMode.VANILLA;
 
 import net.runelite.client.rs.loaders.Client181ClassLoader;
-import net.runelite.client.rs.loaders.Client185ClassLoader;
 import net.runelite.client.ui.FatalErrorDialog;
 import net.runelite.client.ui.SplashScreen;
 import net.runelite.http.api.RuneLiteAPI;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.compress.compressors.CompressorException;
 
 @Slf4j
 @SuppressWarnings("deprecation")
@@ -102,6 +95,8 @@ public class ClientLoader implements Supplier<Applet>
 
 	private HostSupplier hostSupplier = new HostSupplier();
 	private RSConfig config;
+
+	Map<String, byte[]> vanillaData = new HashMap<>();
 
 	public ClientLoader(ClientUpdateCheckMode updateCheckMode)
 	{
@@ -132,7 +127,7 @@ public class ClientLoader implements Supplier<Applet>
 
 		try
 		{
-			SplashScreen.stage(0, null, "Fetching applet viewer config");
+			/*SplashScreen.stage(0, null, "Fetching applet viewer config");
 			downloadConfig();
 
 			SplashScreen.stage(.05, null, "Waiting for other clients to start");
@@ -155,16 +150,15 @@ public class ClientLoader implements Supplier<Applet>
 			File jarFile = updateCheckMode == AUTO ? PATCHED_CACHE : VANILLA_CACHE;
 			URL jar = jarFile.toURI().toURL();
 
-			SplashScreen.stage(.465, "Starting", "Starting Old School RuneScape");
+			SplashScreen.stage(.465, "Starting", "Starting Old School RuneScape");*/
 
-			Applet rs = loadClient(jar);
+			Applet rs = test();// loadClient(jar);
 
 			SplashScreen.stage(.5, null, "Starting core classes");
 
 			return rs;
 		}
-		catch (IOException | ClassNotFoundException | InstantiationException | IllegalAccessException
-			| VerificationException | SecurityException e)
+		catch (Exception e)
 		{
 			log.error("Error loading RS!", e);
 
@@ -201,6 +195,228 @@ public class ClientLoader implements Supplier<Applet>
 				host = hostSupplier.get();
 			}
 		}
+	}
+
+	private Applet test() throws Exception {
+		SplashScreen.stage(0, null, "Fetching applet viewer config");
+
+		HostSupplier hostSupplier = new HostSupplier();
+
+		String host = null;
+		RSConfig config;
+		for (int attempt = 0; ; attempt++)
+		{
+			try
+			{
+				config = ClientConfigLoader.fetch(host);
+				break;
+			}
+			catch (IOException e)
+			{
+				log.info("Failed to get jav_config from host \"{}\" ({})", host, e.getMessage());
+
+				if (attempt >= NUM_ATTEMPTS)
+				{
+					throw e;
+				}
+
+				host = hostSupplier.get();
+			}
+		}
+
+		Map<String, byte[]> zipFile = new HashMap<>();
+		{
+			Certificate[] jagexCertificateChain = getJagexCertificateChain();
+			String codebase = config.getCodeBase();
+			String initialJar = config.getInitialJar();
+			HttpUrl url = HttpUrl.parse(codebase + initialJar);
+
+			for (int attempt = 0; ; attempt++)
+			{
+				zipFile.clear();
+
+				Request request = new Request.Builder()
+						.url(url)
+						.build();
+
+				try (Response response = RuneLiteAPI.CLIENT.newCall(request).execute())
+				{
+					int length = (int) response.body().contentLength();
+					if (length < 0)
+					{
+						length = 3 * 1024 * 1024;
+					}
+					final int flength = length;
+					InputStream istream = new FilterInputStream(response.body().byteStream())
+					{
+						private int read = 0;
+
+						@Override
+						public int read(byte[] b, int off, int len) throws IOException
+						{
+							int thisRead = super.read(b, off, len);
+							this.read += thisRead;
+							SplashScreen.stage(.05, .35, null, "Downloading Old School RuneScape", this.read, flength, true);
+							return thisRead;
+						}
+					};
+					JarInputStream jis = new JarInputStream(istream);
+
+					byte[] tmp = new byte[4096];
+					ByteArrayOutputStream buffer = new ByteArrayOutputStream(756 * 1024);
+					for (; ; )
+					{
+						JarEntry metadata = jis.getNextJarEntry();
+						if (metadata == null)
+						{
+							break;
+						}
+
+						buffer.reset();
+						for (; ; )
+						{
+							int n = jis.read(tmp);
+							if (n <= -1)
+							{
+								break;
+							}
+							buffer.write(tmp, 0, n);
+						}
+
+						if (!Arrays.equals(metadata.getCertificates(), jagexCertificateChain))
+						{
+							if (metadata.getName().startsWith("META-INF/"))
+							{
+								// META-INF/JAGEXLTD.SF and META-INF/JAGEXLTD.RSA are not signed, but we don't need
+								// anything in META-INF anyway.
+								continue;
+							}
+							else
+							{
+								throw new VerificationException("Unable to verify jar entry: " + metadata.getName());
+							}
+						}
+
+						zipFile.put(metadata.getName(), buffer.toByteArray());
+					}
+					break;
+				}
+				catch (IOException e)
+				{
+					log.info("Failed to download gamepack from \"{}\" ({})", url, e.getMessage());
+
+					if (attempt >= NUM_ATTEMPTS)
+					{
+						throw e;
+					}
+
+					url = url.newBuilder().host(hostSupplier.get()).build();
+				}
+			}
+		}
+
+		if (updateCheckMode == AUTO)
+		{
+			SplashScreen.stage(.35, null, "Patching");
+			Map<String, String> hashes;
+			try (InputStream is = ClientLoader.class.getResourceAsStream("/patch/hashes.json"))
+			{
+				if (is == null)
+				{
+					SwingUtilities.invokeLater(() ->
+							new FatalErrorDialog("The client-patch is missing from the classpath. If you are building " +
+									"the client you need to re-run maven")
+									.addBuildingGuide()
+									.open());
+					throw new NullPointerException();
+				}
+				hashes = new Gson().fromJson(new InputStreamReader(is), new TypeToken<HashMap<String, String>>()
+				{
+				}.getType());
+			}
+
+			for (Map.Entry<String, String> file : hashes.entrySet())
+			{
+				byte[] bytes = zipFile.get(file.getKey());
+
+				String ourHash = null;
+				if (bytes != null)
+				{
+					ourHash = Hashing.sha512().hashBytes(bytes).toString();
+				}
+
+				if (!file.getValue().equals(ourHash))
+				{
+					log.debug("{} had a hash mismatch; falling back to vanilla. {} != {}", file.getKey(), file.getValue(), ourHash);
+					log.info("Client is outdated!");
+					updateCheckMode = VANILLA;
+					break;
+				}
+			}
+		}
+
+		if (updateCheckMode == AUTO)
+		{
+			ByteArrayOutputStream patchOs = new ByteArrayOutputStream(756 * 1024);
+			int patchCount = 0;
+
+			for (Map.Entry<String, byte[]> file : zipFile.entrySet())
+			{
+				byte[] bytes;
+				try (InputStream is = ClientLoader.class.getResourceAsStream("/patch/" + file.getKey() + ".bs"))
+				{
+					if (is == null)
+					{
+						continue;
+					}
+
+					bytes = ByteStreams.toByteArray(is);
+				}
+
+				patchOs.reset();
+				Patch.patch(file.getValue(), bytes, patchOs);
+				file.setValue(patchOs.toByteArray());
+
+				++patchCount;
+				SplashScreen.stage(.38, .45, null, "Patching", patchCount, zipFile.size(), false);
+			}
+
+			log.debug("Patched {} classes", patchCount);
+		}
+
+		SplashScreen.stage(.465, "Starting", "Starting Old School RuneScape");
+
+		String initialClass = config.getInitialClass();
+
+		ClassLoader rsClassLoader = new ClassLoader(ClientLoader.class.getClassLoader())
+		{
+			@Override
+			protected Class<?> findClass(String name) throws ClassNotFoundException
+			{
+				String path = name.replace('.', '/').concat(".class");
+				byte[] data = zipFile.get(path);
+				if (data == null)
+				{
+					throw new ClassNotFoundException(name);
+				}
+
+				return defineClass(name, data, 0, data.length);
+			}
+		};
+
+		Class<?> clientClass = rsClassLoader.loadClass(initialClass);
+
+		Applet rs = (Applet) clientClass.newInstance();
+		rs.setStub(new RSAppletStub(config));
+
+		if (rs instanceof Client)
+		{
+			log.info("client-patch {}", ((Client) rs).getBuildID());
+		}
+
+		SplashScreen.stage(.5, null, "Starting core classes");
+
+		return rs;
 	}
 
 	private void updateVanilla() throws IOException, VerificationException
@@ -259,15 +475,12 @@ public class ClientLoader implements Supplier<Applet>
 					{
 						length = 3 * 1024 * 1024;
 					}
-					else
-					{
-						if (!vanillaCacheIsInvalid && vanilla.size() != length)
-						{
-							// The zip trailer filetab can be missing and the ZipInputStream will not notice
-							log.info("Vanilla cache is the wrong size");
-							vanillaCacheIsInvalid = true;
-						}
+					else if (!vanillaCacheIsInvalid && vanilla.size() != length) {
+						// The zip trailer filetab can be missing and the ZipInputStream will not notice
+						log.info("Vanilla cache is the wrong size");
+						vanillaCacheIsInvalid = true;
 					}
+
 					final int flength = length;
 					TeeInputStream copyStream = new TeeInputStream(new CountingInputStream(response.body().byteStream(),
 						read -> SplashScreen.stage(.05, .35, null, "Downloading Old School RuneScape", read, flength, true)));
@@ -325,6 +538,7 @@ public class ClientLoader implements Supplier<Applet>
 					{
 						log.info("Using cached vanilla client");
 					}
+
 					return;
 				}
 				catch (IOException e)
@@ -342,67 +556,103 @@ public class ClientLoader implements Supplier<Applet>
 		}
 	}
 
-	private void applyPatch() throws IOException
-	{
-		byte[] vanillaHash = new byte[64];
-		byte[] appliedPatchHash = new byte[64];
+	private void applyPatch() throws IOException {
+		File jarFile = VANILLA_CACHE;
+		JarInputStream jis = new JarInputStream(new FileInputStream(jarFile));
 
-		try (InputStream is = ClientLoader.class.getResourceAsStream("/client.serial"))
-		{
-			if (is == null)
-			{
-				SwingUtilities.invokeLater(() ->
-					new FatalErrorDialog("The client-patch is missing from the classpath. If you are building " +
-						"the client you need to re-run maven")
-						.addBuildingGuide()
-						.open());
-				throw new NullPointerException();
+		try {
+			byte[] tmp = new byte[4096];
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream(756 * 1024);
+			for (; ; ) {
+				JarEntry metadata = jis.getNextJarEntry();
+				if (metadata == null) {
+					break;
+				}
+
+				buffer.reset();
+				for (; ; ) {
+					int n = jis.read(tmp);
+					if (n <= -1) {
+						break;
+					}
+					buffer.write(tmp, 0, n);
+				}
+
+				vanillaData.put(metadata.getName(), buffer.toByteArray());
 			}
 
-			DataInputStream dis = new DataInputStream(is);
-			dis.readFully(vanillaHash);
-			dis.readFully(appliedPatchHash);
-		}
+			if (updateCheckMode == AUTO) {
+				SplashScreen.stage(.35, null, "Patching");
+				Map<String, String> hashes;
+				try (InputStream is = ClientLoader.class.getResourceAsStream("/patch/hashes.json")) {
+					if (is == null) {
+						SwingUtilities.invokeLater(() -> new FatalErrorDialog("The client-patch is missing from the classpath. If you are building " +
+							"the client you need to re-run maven")
+							.addBuildingGuide()
+							.open());
+						throw new NullPointerException();
+					}
+					hashes = new Gson().fromJson(new InputStreamReader(is),
+						new TypeToken<HashMap<String, String>>() {}.getType());
+				}
 
-		byte[] vanillaCacheHash = Files.asByteSource(VANILLA_CACHE).hash(Hashing.sha512()).asBytes();
-		if (!Arrays.equals(vanillaHash, vanillaCacheHash))
-		{
-			log.info("Client is outdated!");
-			updateCheckMode = VANILLA;
-			return;
-		}
+				for (Map.Entry<String, String> file : hashes.entrySet()) {
+					byte[] bytes = vanillaData.get(file.getKey());
 
-		if (PATCHED_CACHE.exists())
-		{
-			byte[] diskBytes = Files.asByteSource(PATCHED_CACHE).hash(Hashing.sha512()).asBytes();
-			if (!Arrays.equals(diskBytes, appliedPatchHash))
-			{
-				log.warn("Cached patch hash mismatches, regenerating patch");
+					String ourHash = null;
+					if (bytes != null) {
+						ourHash = Hashing.sha512().hashBytes(bytes).toString();
+					}
+
+					if (!file.getValue().equals(ourHash)) {
+						log.debug("{} had a hash mismatch; falling back to vanilla. {} != {}", file.getKey(), file.getValue(), ourHash);
+						log.info("Client is outdated!");
+						updateCheckMode = VANILLA;
+						break;
+					}
+				}
 			}
-			else
-			{
-				log.info("Using cached patched client");
-				return;
-			}
-		}
 
-		try (HashingOutputStream hos = new HashingOutputStream(Hashing.sha512(), new FileOutputStream(PATCHED_CACHE));
-			InputStream patch = ClientLoader.class.getResourceAsStream("/client.patch"))
-		{
-			new FileByFileV1DeltaApplier().applyDelta(VANILLA_CACHE, patch, hos);
+			if (updateCheckMode == AUTO) {
+				ByteArrayOutputStream patchOs = new ByteArrayOutputStream(756 * 1024);
+				int patchCount = 0;
 
-			if (!Arrays.equals(hos.hash().asBytes(), appliedPatchHash))
-			{
-				log.error("Patched client hash mismatch");
-				updateCheckMode = VANILLA;
-				return;
+				Map<String, byte[]> patchData = new HashMap<>();
+				JarFile zipFile = new JarFile(ClientLoader.class.getResource("/client.patch.jar").getPath());
+
+				Enumeration<? extends JarEntry> entries = zipFile.entries();
+				while(entries.hasMoreElements()) {
+					JarEntry entry = entries.nextElement();
+					String name = entry.getName();
+
+					if (!entry.isDirectory() && name != null && !name.isEmpty() && !name.startsWith("META-INF/")) {
+						InputStream stream = zipFile.getInputStream(entry);
+						byte[] buf = new byte[(int) entry.getSize() + 114025];
+						int read = stream.read(buf);
+						patchData.put(name.substring(6, name.length() - 3), buf);
+					}
+				}
+
+				for (Map.Entry<String, byte[]> data : vanillaData.entrySet()) {
+					patchOs.reset();
+					byte[] classPatch = patchData.get(data.getKey());
+					String original = Arrays.toString(data.getValue());
+					String patch = Arrays.toString(classPatch);
+					Patch.patch(data.getValue(), classPatch, patchOs);
+					data.setValue(patchOs.toByteArray());
+
+					++patchCount;
+					SplashScreen.stage(.38, .45, null, "Patching", patchCount, vanillaData.size(), false);
+				}
+
+				log.debug("Patched {} classes", patchCount);
 			}
+
 		}
-		catch (IOException e)
+		catch (IOException | CompressorException | InvalidHeaderException | SecurityException e)
 		{
-			log.error("Unable to apply patch despite hash matching", e);
-			updateCheckMode = VANILLA;
-			return;
+			e.printStackTrace();
+			SwingUtilities.invokeLater(() -> FatalErrorDialog.showNetErrorWindow("loading the client", e));
 		}
 	}
 
@@ -410,7 +660,8 @@ public class ClientLoader implements Supplier<Applet>
 	{
 		String initialClass = config.getInitialClass();
 
-		URLClassLoader rsClassLoader = new Client181ClassLoader(new URL[]{url}, initialClass);
+		ClassLoader rsClassLoader = new Client181ClassLoader(vanillaData, initialClass);
+		//ClassLoader rsClassLoader = new Client185ClassLoader(new URL[]{url}, initialClass);
 
 		Class<?> clientClass = rsClassLoader.loadClass(initialClass);
 
