@@ -34,6 +34,8 @@ import io.sigpipe.jbsdiff.InvalidHeaderException;
 import io.sigpipe.jbsdiff.Patch;
 import java.applet.Applet;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,6 +56,9 @@ import net.runelite.api.Client;
 import static net.runelite.client.rs.ClientUpdateCheckMode.AUTO;
 import static net.runelite.client.rs.ClientUpdateCheckMode.NONE;
 import static net.runelite.client.rs.ClientUpdateCheckMode.VANILLA;
+
+import net.runelite.client.RuneLite;
+import net.runelite.client.rs.loaders.Client181ClassLoader;
 import net.runelite.client.ui.FatalErrorDialog;
 import net.runelite.client.ui.SplashScreen;
 import net.runelite.http.api.RuneLiteAPI;
@@ -289,7 +294,7 @@ public class ClientLoader implements Supplier<Applet>
 
 			String initialClass = config.getInitialClass();
 
-			ClassLoader rsClassLoader = new ClassLoader(ClientLoader.class.getClassLoader())
+			/*ClassLoader rsClassLoader = new ClassLoader(ClientLoader.class.getClassLoader())
 			{
 				@Override
 				protected Class<?> findClass(String name) throws ClassNotFoundException
@@ -303,7 +308,8 @@ public class ClientLoader implements Supplier<Applet>
 
 					return defineClass(name, data, 0, data.length);
 				}
-			};
+			};*/
+			ClassLoader rsClassLoader = new Client181ClassLoader(zipFile, initialClass);
 
 			Class<?> clientClass = rsClassLoader.loadClass(initialClass);
 
