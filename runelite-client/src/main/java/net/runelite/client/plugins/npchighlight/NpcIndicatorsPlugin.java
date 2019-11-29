@@ -28,6 +28,7 @@ package net.runelite.client.plugins.npchighlight;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 
 import java.io.File;
@@ -44,20 +45,17 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -87,17 +85,14 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.npchighlight.data.Npc;
+import net.runelite.client.plugins.npchighlight.data.Position;
+import net.runelite.client.plugins.npchighlight.data.Region;
 import net.runelite.client.plugins.worldmap.TeleportLocationData;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.Text;
 import net.runelite.client.util.WildcardMatcher;
-import java.lang.reflect.Type;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 
 @PluginDescriptor(
 	name = "NPC Indicators",
@@ -152,7 +147,7 @@ public class NpcIndicatorsPlugin extends Plugin
 	@Getter(AccessLevel.PACKAGE)
 	private final Set<NPC> highlightedNpcs = new HashSet<>();
 
-	private final Set<NPC> cachedNpcs = new HashSet<>();
+	private final Set<NPC> cachedNpcs = new CopyOnWriteArraySet<>();
 
 	/**
 	 * Dead NPCs that should be displayed with a respawn indicator if the config is on.
@@ -211,6 +206,14 @@ public class NpcIndicatorsPlugin extends Plugin
 	 */
 	private boolean skipNextSpawnCheck = false;
 
+	private Map<Integer, Npc> npcs = new ConcurrentHashMap<>();
+	private Gson gson = new Gson().newBuilder()
+		.setPrettyPrinting()
+		.registerTypeAdapter(List.class, new RemoveNullListSerializer())
+		.create();
+
+	private ScheduledFuture<?> npcDumpFuture;
+
 	@Provides
 	NpcIndicatorsConfig provideConfig(ConfigManager configManager)
 	{
@@ -246,94 +249,6 @@ public class NpcIndicatorsPlugin extends Plugin
 		keyManager.unregisterKeyListener(inputListener);
 	}
 
-	String getRegionNameByRegionId(int regionId) {
-		for (TeleportLocationData locationData : TeleportLocationData.values()) {
-			if (locationData.getLocation().getRegionID() == regionId) {
-				return locationData.getDestination();
-			}
-		}
-		return null;
-	}
-
-	public class RemoveNullListSerializer<T> implements JsonSerializer<List<T>> {
-
-		@Override
-		public JsonElement serialize(List<T> src, Type typeOfSrc,
-									 JsonSerializationContext context) {
-			JsonArray result = new JsonArray();
-
-			// remove all null values
-			if (src != null) {
-				src.removeAll(Collections.singleton(null));
-
-				// create json Result
-				for (T item : src) {
-					result.add(context.serialize(item));
-				}
-			}
-
-			return result;
-		}
-	}
-
-	@AllArgsConstructor
-	class Position {
-		int x,y,z;
-	}
-
-	@AllArgsConstructor
-	class Region {
-		int id;
-		String name;
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) return true;
-			if (o == null || getClass() != o.getClass()) return false;
-			Region region = (Region) o;
-			return id == region.id;
-		}
-	}
-
-	@Data
-	@RequiredArgsConstructor
-	class Npc {
-		final int id;
-		final String name;
-		final int combat_level;
-		final int health;
-		final int direction;
-		final Region region;
-		final Position position;
-
-		boolean intractable, visible;
-		List<String> actions;
-		List<Integer> configs;
-		String head_icon;
-	}
-
-	@Data
-	@RequiredArgsConstructor
-	class RegionCategory {
-		final String region;
-
-		Map<Integer, Npc> npcs = new ConcurrentHashMap<>();
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) return true;
-			if (o == null || getClass() != o.getClass()) return false;
-			RegionCategory that = (RegionCategory) o;
-			return Objects.equals(region, that.region);
-		}
-	}
-
-	Map<Integer, RegionCategory> regions = new ConcurrentHashMap<>();
-	Gson gson = new Gson().newBuilder()
-			.setPrettyPrinting()
-			.registerTypeAdapter(List.class, new RemoveNullListSerializer())
-			.create();
-
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event) throws IOException {
 		if (event.getGameState() == GameState.LOGIN_SCREEN ||
@@ -345,104 +260,23 @@ public class NpcIndicatorsPlugin extends Plugin
 			lastPlayerLocation = null;
 			skipNextSpawnCheck = true;
 		}
-		else if (event.getGameState() == GameState.LOGGED_IN) {
-
-			final File file = new File(RuneLite.RUNELITE_DIR + "/npc-spawns.json");
-			if (!file.exists()) {
-				file.createNewFile();
-			}
-
-			executor.scheduleWithFixedDelay(() -> {
-				if (!cachedNpcs.isEmpty()) {
-					Map<Integer, Npc> npcs = new HashMap<>();
-
-					for (NPC npc : cachedNpcs) {
-						InputStream is = null;
-						try {
-							is = new FileInputStream(file);
-						} catch (FileNotFoundException e) {
-							e.printStackTrace();
-						}
-
-						npcs = gson.fromJson(new InputStreamReader(is), Map.class);
-						if (npcs == null) {
-							npcs = new HashMap<>();
-						}
-
-						int regionId = npc.getWorldLocation().getRegionID();
-						String regionName = getRegionNameByRegionId(regionId);
-
-						if (!npc.isDead() && !npcs.containsKey(npc.getIndex())) {
-							Npc storableNpc = new Npc(npc.getId(),
-								npc.getName(),
-								npc.getCombatLevel(),
-								npc.getHealth(),
-								npc.getOrientation(),
-								new Region(npc.getWorldLocation().getRegionID(), regionName),
-								new Position(
-									npc.getWorldLocation().getX(),
-									npc.getWorldLocation().getY(),
-									npc.getWorldLocation().getPlane())
-							);
-
-							NPCComposition npcComposition = npc.getComposition();
-							if (npcComposition != null) {
-								storableNpc.setIntractable(npcComposition.isInteractible());
-								storableNpc.setActions(new ArrayList<>(Arrays.asList(npcComposition.getActions())));
-								int[] confArray = npcComposition.getConfigs();
-								if (confArray != null) {
-									List<Integer> configs = new ArrayList<>(new ArrayList<>(confArray.length));
-									for (int conf : confArray) {
-										configs.add(conf);
-									}
-									storableNpc.setConfigs(configs);
-								}
-								storableNpc.setVisible(npcComposition.isVisible());
-
-								HeadIcon headIcon = npcComposition.getOverheadIcon();
-								if (headIcon != null) {
-									storableNpc.setHead_icon(headIcon.name());
-								}
-							}
-
-							npcs.put(npc.getIndex(), storableNpc);
-						}
-
-						RegionCategory regionCategory = regions.get(regionId);
-						if (regionCategory == null) {
-							regionCategory = new RegionCategory(regionName);
-							regions.put(regionId, regionCategory);
-						}
-
-						regionCategory.npcs.putAll(npcs);
-					}
-
-					OutputStream os = null;
-					try {
-						os = new FileOutputStream(file);
-						os.write(gson.toJson(regions).getBytes());
-						os.close();
-					} catch (IOException e) {
-						e.printStackTrace();
-						try {
-							if (os != null) {
-								os.close();
-							}
-						} catch (IOException e1) {
-							e1.printStackTrace();
-						}
-					}
-				}
-			}, 5, 5, TimeUnit.SECONDS);
+		else if (config.dumpSpawnData() && event.getGameState() == GameState.LOGGED_IN)
+		{
+			setupNpcDump();
 		}
 	}
 
 	@Subscribe
-	public void onConfigChanged(ConfigChanged configChanged)
+	public void onConfigChanged(ConfigChanged configChanged) throws IOException
 	{
 		if (!configChanged.getGroup().equals("npcindicators"))
 		{
 			return;
+		}
+
+		if (configChanged.getKey().equals("dumpSpawnData") && Boolean.parseBoolean(configChanged.getNewValue()))
+		{
+			setupNpcDump();
 		}
 
 		highlights = getHighlights();
@@ -801,5 +635,104 @@ public class NpcIndicatorsPlugin extends Plugin
 		spawnedNpcsThisTick.clear();
 		despawnedNpcsThisTick.clear();
 		teleportGraphicsObjectSpawnedThisTick.clear();
+	}
+
+	private void setupNpcDump() throws IOException {
+		final File file = new File(RuneLite.RUNELITE_DIR + "/npc-spawns.json");
+		if (!file.exists()) {
+			file.createNewFile();
+		}
+
+		if (npcDumpFuture != null) {
+			npcDumpFuture.cancel(false);
+		}
+
+		npcDumpFuture = executor.scheduleWithFixedDelay(() -> {
+			try {
+				if (!cachedNpcs.isEmpty()) {
+					InputStream is = null;
+					try {
+						is = new FileInputStream(file);
+					} catch (FileNotFoundException e) {
+						e.printStackTrace();
+					}
+
+					npcs = gson.fromJson(new InputStreamReader(is), new TypeToken<Map<Integer, Npc>>() {}.getType());
+					if (npcs == null) {
+						npcs = new ConcurrentHashMap<>();
+					}
+
+					is.close();
+
+					for (NPC npc : cachedNpcs) {
+						if (!npc.isDead() && !npcs.containsKey(npc.getIndex())) {
+							int regionId = npc.getWorldLocation().getRegionID();
+							String regionName = getRegionNameByRegionId(regionId);
+
+							Npc storableNpc = new Npc(npc.getId(),
+								npc.getName(),
+								npc.getCombatLevel(),
+								npc.getHealth(),
+								npc.getOrientation(),
+								new Region(regionId, regionName),
+								new Position(
+									npc.getWorldLocation().getX(),
+									npc.getWorldLocation().getY(),
+									npc.getWorldLocation().getPlane())
+							);
+
+							NPCComposition npcComposition = npc.getComposition();
+							if (npcComposition != null) {
+								storableNpc.setIntractable(npcComposition.isInteractible());
+								storableNpc.setActions(new ArrayList<>(Arrays.asList(npcComposition.getActions())));
+								int[] confArray = npcComposition.getConfigs();
+								if (confArray != null) {
+									List<Integer> configs = new ArrayList<>(new ArrayList<>(confArray.length));
+									for (int conf : confArray) {
+										configs.add(conf);
+									}
+									storableNpc.setConfigs(configs);
+								}
+								storableNpc.setVisible(npcComposition.isVisible());
+
+								HeadIcon headIcon = npcComposition.getOverheadIcon();
+								if (headIcon != null) {
+									storableNpc.setHead_icon(headIcon.name());
+								}
+							}
+
+							npcs.put(npc.getIndex(), storableNpc);
+						}
+					}
+
+					OutputStream os = null;
+					try {
+						os = new FileOutputStream(file);
+						os.write(gson.toJson(npcs).getBytes());
+						os.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+						try {
+							if (os != null) {
+								os.close();
+							}
+						} catch (IOException e1) {
+							e1.printStackTrace();
+						}
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}, 2, 20, TimeUnit.SECONDS);
+	}
+
+	private String getRegionNameByRegionId(int regionId) {
+		for (TeleportLocationData locationData : TeleportLocationData.values()) {
+			if (locationData.getLocation().getRegionID() == regionId) {
+				return locationData.getDestination();
+			}
+		}
+		return null;
 	}
 }

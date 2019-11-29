@@ -107,4 +107,15 @@ public interface NpcIndicatorsConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		position = 7,
+		keyName = "dumpSpawnData",
+		name = "Dump NPC spawn data",
+		description = "Configures whether or not NPC data is dumped to npc-spawns.json"
+	)
+	default boolean dumpSpawnData()
+	{
+		return false;
+	}
 }
