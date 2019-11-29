@@ -29,7 +29,7 @@ import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
 
 @Getter
-enum TeleportLocationData
+public enum TeleportLocationData
 {
 	VARROCK(TeleportType.NORMAL_MAGIC, "Varrock", 25, new WorldPoint(3213, 3424, 0), "varrock_teleport_icon.png"),
 	VARROCK_GE(TeleportType.NORMAL_MAGIC, "Varrock GE", 25, new WorldPoint(3164, 3478, 0), "varrock_teleport_icon.png"),
@@ -190,6 +190,7 @@ enum TeleportLocationData
 	private final String tooltip;
 	private final WorldPoint location;
 	private final String iconPath;
+	private final String destination;
 
 	TeleportLocationData(TeleportType type, String destination, int magicLevel, WorldPoint location, String iconPath)
 	{
@@ -197,6 +198,7 @@ enum TeleportLocationData
 		this.tooltip = type.getPrefix() + " " + destination + " - lvl " + magicLevel;
 		this.location = location;
 		this.iconPath = iconPath;
+		this.destination = destination;
 	}
 
 	TeleportLocationData(TeleportType type, String item, String destination, WorldPoint location, String iconPath)
@@ -205,6 +207,7 @@ enum TeleportLocationData
 		this.tooltip = item + " - " + destination;
 		this.location = location;
 		this.iconPath = iconPath;
+		this.destination = destination;
 	}
 
 	TeleportLocationData(TeleportType type, String item, WorldPoint location, String iconPath)
@@ -213,5 +216,6 @@ enum TeleportLocationData
 		this.tooltip = item;
 		this.location = location;
 		this.iconPath = iconPath;
+		this.destination = item;
 	}
 }
