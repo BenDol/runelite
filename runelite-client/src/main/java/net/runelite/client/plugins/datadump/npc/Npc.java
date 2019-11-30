@@ -1,7 +1,9 @@
-package net.runelite.client.plugins.npchighlight.data;
+package net.runelite.client.plugins.datadump.npc;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import net.runelite.client.plugins.datadump.data.Position;
+import net.runelite.client.plugins.datadump.data.Region;
 
 import java.util.List;
 

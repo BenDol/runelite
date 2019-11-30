@@ -27,18 +27,9 @@ package net.runelite.client.plugins.npchighlight;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,11 +39,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -62,14 +50,11 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.GraphicID;
 import net.runelite.api.GraphicsObject;
-import net.runelite.api.HeadIcon;
 import net.runelite.api.MenuAction;
 import static net.runelite.api.MenuAction.MENU_ACTION_DEPRIORITIZE_OFFSET;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.NPC;
-import net.runelite.api.NPCComposition;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.client.RuneLite;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.api.events.FocusChanged;
 import net.runelite.api.events.GameStateChanged;
@@ -85,10 +70,6 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.npchighlight.data.Npc;
-import net.runelite.client.plugins.npchighlight.data.Position;
-import net.runelite.client.plugins.npchighlight.data.Region;
-import net.runelite.client.plugins.worldmap.TeleportLocationData;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.Text;
@@ -206,14 +187,6 @@ public class NpcIndicatorsPlugin extends Plugin
 	 */
 	private boolean skipNextSpawnCheck = false;
 
-	private Map<Integer, Npc> npcs = new ConcurrentHashMap<>();
-	private Gson gson = new Gson().newBuilder()
-		.setPrettyPrinting()
-		.registerTypeAdapter(List.class, new RemoveNullListSerializer())
-		.create();
-
-	private ScheduledFuture<?> npcDumpFuture;
-
 	@Provides
 	NpcIndicatorsConfig provideConfig(ConfigManager configManager)
 	{
@@ -260,10 +233,6 @@ public class NpcIndicatorsPlugin extends Plugin
 			lastPlayerLocation = null;
 			skipNextSpawnCheck = true;
 		}
-		else if (config.dumpSpawnData() && event.getGameState() == GameState.LOGGED_IN)
-		{
-			setupNpcDump();
-		}
 	}
 
 	@Subscribe
@@ -272,11 +241,6 @@ public class NpcIndicatorsPlugin extends Plugin
 		if (!configChanged.getGroup().equals("npcindicators"))
 		{
 			return;
-		}
-
-		if (configChanged.getKey().equals("dumpSpawnData") && Boolean.parseBoolean(configChanged.getNewValue()))
-		{
-			setupNpcDump();
 		}
 
 		highlights = getHighlights();
@@ -635,104 +599,5 @@ public class NpcIndicatorsPlugin extends Plugin
 		spawnedNpcsThisTick.clear();
 		despawnedNpcsThisTick.clear();
 		teleportGraphicsObjectSpawnedThisTick.clear();
-	}
-
-	private void setupNpcDump() throws IOException {
-		final File file = new File(RuneLite.RUNELITE_DIR + "/npc-spawns.json");
-		if (!file.exists()) {
-			file.createNewFile();
-		}
-
-		if (npcDumpFuture != null) {
-			npcDumpFuture.cancel(false);
-		}
-
-		npcDumpFuture = executor.scheduleWithFixedDelay(() -> {
-			try {
-				if (!cachedNpcs.isEmpty()) {
-					InputStream is = null;
-					try {
-						is = new FileInputStream(file);
-					} catch (FileNotFoundException e) {
-						e.printStackTrace();
-					}
-
-					npcs = gson.fromJson(new InputStreamReader(is), new TypeToken<Map<Integer, Npc>>() {}.getType());
-					if (npcs == null) {
-						npcs = new ConcurrentHashMap<>();
-					}
-
-					is.close();
-
-					for (NPC npc : cachedNpcs) {
-						if (!npc.isDead() && !npcs.containsKey(npc.getIndex())) {
-							int regionId = npc.getWorldLocation().getRegionID();
-							String regionName = getRegionNameByRegionId(regionId);
-
-							Npc storableNpc = new Npc(npc.getId(),
-								npc.getName(),
-								npc.getCombatLevel(),
-								npc.getHealth(),
-								npc.getOrientation(),
-								new Region(regionId, regionName),
-								new Position(
-									npc.getWorldLocation().getX(),
-									npc.getWorldLocation().getY(),
-									npc.getWorldLocation().getPlane())
-							);
-
-							NPCComposition npcComposition = npc.getComposition();
-							if (npcComposition != null) {
-								storableNpc.setIntractable(npcComposition.isInteractible());
-								storableNpc.setActions(new ArrayList<>(Arrays.asList(npcComposition.getActions())));
-								int[] confArray = npcComposition.getConfigs();
-								if (confArray != null) {
-									List<Integer> configs = new ArrayList<>(new ArrayList<>(confArray.length));
-									for (int conf : confArray) {
-										configs.add(conf);
-									}
-									storableNpc.setConfigs(configs);
-								}
-								storableNpc.setVisible(npcComposition.isVisible());
-
-								HeadIcon headIcon = npcComposition.getOverheadIcon();
-								if (headIcon != null) {
-									storableNpc.setHead_icon(headIcon.name());
-								}
-							}
-
-							npcs.put(npc.getIndex(), storableNpc);
-						}
-					}
-
-					OutputStream os = null;
-					try {
-						os = new FileOutputStream(file);
-						os.write(gson.toJson(npcs).getBytes());
-						os.close();
-					} catch (IOException e) {
-						e.printStackTrace();
-						try {
-							if (os != null) {
-								os.close();
-							}
-						} catch (IOException e1) {
-							e1.printStackTrace();
-						}
-					}
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}, 2, 20, TimeUnit.SECONDS);
-	}
-
-	private String getRegionNameByRegionId(int regionId) {
-		for (TeleportLocationData locationData : TeleportLocationData.values()) {
-			if (locationData.getLocation().getRegionID() == regionId) {
-				return locationData.getDestination();
-			}
-		}
-		return null;
 	}
 }

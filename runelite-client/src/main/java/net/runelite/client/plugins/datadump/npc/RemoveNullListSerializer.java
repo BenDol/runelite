@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.npchighlight;
+package net.runelite.client.plugins.datadump.npc;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;

@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.npchighlight.data;
+package net.runelite.client.plugins.datadump.data;
 
 import lombok.AllArgsConstructor;
 
