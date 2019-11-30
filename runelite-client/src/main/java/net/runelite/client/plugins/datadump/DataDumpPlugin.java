@@ -35,10 +35,8 @@ import net.runelite.api.Client;
 import net.runelite.api.DecorativeObject;
 import net.runelite.api.GameState;
 import net.runelite.api.GroundObject;
-import net.runelite.api.HeadIcon;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.NPC;
-import net.runelite.api.NPCComposition;
 import net.runelite.api.ObjectComposition;
 import net.runelite.api.Tile;
 import net.runelite.api.TileItem;
@@ -63,7 +61,7 @@ import net.runelite.client.game.NPCManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.datadump.data.Position;
-import net.runelite.client.plugins.datadump.data.Region;
+import net.runelite.client.plugins.datadump.npc.DummyNPC;
 import net.runelite.client.plugins.datadump.npc.NpcMinimapOverlay;
 import net.runelite.client.plugins.datadump.npc.NpcSceneOverlay;
 import net.runelite.client.plugins.datadump.npc.RemoveNullListSerializer;
@@ -140,7 +138,7 @@ public class DataDumpPlugin extends Plugin
 	@Getter(AccessLevel.PUBLIC)
 	private final Set<NPC> highlightedNpcs = new HashSet<>();
 
-	private final Set<NPC> cachedNpcs = new CopyOnWriteArraySet<>();
+	private final Set<DummyNPC> cachedNpcs = new CopyOnWriteArraySet<>();
 
 	@Getter(AccessLevel.PUBLIC)
 	private final List<TileObject> cachedObjects = new ArrayList<>();
@@ -279,12 +277,12 @@ public class DataDumpPlugin extends Plugin
 	{
 		final int npcIndex = npc.getIndex();
 
-		for (NPC savedNpc : cachedNpcs) {
-			if (savedNpc.getIndex() == npcIndex) {
+		for (DummyNPC savedNpc : cachedNpcs) {
+			if (savedNpc == null || savedNpc.getIndex() == npcIndex || savedNpc.getId() < 1) {
 				return;
 			}
 		}
-		cachedNpcs.add(npc);
+		cachedNpcs.add(new DummyNPC(npc, npcManager));
 	}
 
 	private void rebuildAllNpcs()
@@ -340,52 +338,9 @@ public class DataDumpPlugin extends Plugin
 
 					is.close();
 
-					for (NPC npc : cachedNpcs) {
-						if (!npc.isDead() && !npcs.containsKey(npc.getIndex())) {
-							int regionId = npc.getWorldLocation().getRegionID();
-							String regionName = getRegionNameByRegionId(regionId);
-
-							String name = npc.getName();
-							int combatLevel = npc.getCombatLevel();
-							Integer health = npc.getHealth();
-							if (health == -1) {
-								health = npcManager.getHealth(name, combatLevel);
-								if (health == null) {
-									health = npc.getHealth();
-								}
-							}
-
-							Npc storableNpc = new Npc(npc.getId(),
-								name, combatLevel, health,
-								npc.getOrientation(),
-								new Region(regionId, regionName),
-								new Position(
-									npc.getWorldLocation().getX(),
-									npc.getWorldLocation().getY(),
-									npc.getWorldLocation().getPlane())
-							);
-
-							NPCComposition npcComposition = npc.getComposition();
-							if (npcComposition != null) {
-								storableNpc.setIntractable(npcComposition.isInteractible());
-								storableNpc.setActions(new ArrayList<>(Arrays.asList(npcComposition.getActions())));
-								int[] confArray = npcComposition.getConfigs();
-								if (confArray != null) {
-									List<Integer> configs = new ArrayList<>(new ArrayList<>(confArray.length));
-									for (int conf : confArray) {
-										configs.add(conf);
-									}
-									storableNpc.setConfigs(configs);
-								}
-								storableNpc.setVisible(npcComposition.isVisible());
-
-								HeadIcon headIcon = npcComposition.getOverheadIcon();
-								if (headIcon != null) {
-									storableNpc.setHead_icon(headIcon.name());
-								}
-							}
-
-							npcs.put(npc.getIndex(), storableNpc);
+					for (DummyNPC dummyNpc : cachedNpcs) {
+						if (!dummyNpc.isDead() && !npcs.containsKey(dummyNpc.getIndex())) {
+							npcs.put(dummyNpc.getIndex(), dummyNpc.getNpc());
 						}
 					}
 
@@ -580,14 +535,7 @@ public class DataDumpPlugin extends Plugin
 		}, 2, 20, TimeUnit.SECONDS);
 	}
 
-	private String getRegionNameByRegionId(int regionId) {
-		for (TeleportLocationData locationData : TeleportLocationData.values()) {
-			if (locationData.getLocation().getRegionID() == regionId) {
-				return locationData.getDestination();
-			}
-		}
-		return null;
-	}
+
 
 	private ObjectComposition getObjectComposition(int id)
 	{
