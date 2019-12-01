@@ -77,7 +77,8 @@ public class NpcSceneOverlay extends Overlay
 	{
 		for (NPC npc : plugin.getHighlightedNpcs())
 		{
-			renderNpcOverlay(graphics, npc, config.getHighlightColor());
+			Color color = config.getHighlightColor();
+			renderNpcOverlay(graphics, npc, plugin.getNpcs().containsKey(npc.getIndex()) ? Color.GREEN : color);
 		}
 
 		return null;

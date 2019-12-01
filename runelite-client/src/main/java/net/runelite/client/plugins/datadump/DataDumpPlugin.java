@@ -31,6 +31,7 @@ import com.google.inject.Provides;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.DecorativeObject;
 import net.runelite.api.GameState;
@@ -52,7 +53,12 @@ import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.NpcSpawned;
 import net.runelite.api.events.WallObjectSpawned;
 import net.runelite.client.RuneLite;
+import net.runelite.client.RuneLiteProperties;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -62,17 +68,16 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.datadump.data.Position;
 import net.runelite.client.plugins.datadump.npc.DummyNPC;
-import net.runelite.client.plugins.datadump.npc.NpcMinimapOverlay;
 import net.runelite.client.plugins.datadump.npc.NpcSceneOverlay;
 import net.runelite.client.plugins.datadump.npc.RemoveNullListSerializer;
 import net.runelite.client.plugins.datadump.npc.Npc;
 import net.runelite.client.plugins.datadump.object.GameItem;
 import net.runelite.client.plugins.datadump.object.ObjectIndicatorsOverlay;
 import net.runelite.client.plugins.datadump.object.GameObject;
-import net.runelite.client.plugins.worldmap.TeleportLocationData;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
+import java.awt.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -102,6 +107,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class DataDumpPlugin extends Plugin
 {
+	private static final String appName = RuneLiteProperties.getTitle();
+
 	@Inject
 	private Client client;
 
@@ -113,9 +120,6 @@ public class DataDumpPlugin extends Plugin
 
 	@Inject
 	private NpcSceneOverlay npcSceneOverlay;
-
-	@Inject
-	private NpcMinimapOverlay npcMinimapOverlay;
 
 	@Inject
 	private ObjectIndicatorsOverlay objectOverlay;
@@ -131,6 +135,9 @@ public class DataDumpPlugin extends Plugin
 
 	@Inject
 	private ItemManager itemManager;
+
+	@Inject
+	private ChatMessageManager chatMessageManager;
 
 	/**
 	 * NPCs to highlight
@@ -152,6 +159,7 @@ public class DataDumpPlugin extends Plugin
 	@Getter(AccessLevel.PACKAGE)
 	private Instant lastTickUpdate;
 
+	@Getter(AccessLevel.PUBLIC)
 	private Map<Integer, Npc> npcs = new ConcurrentHashMap<>();
 	private Map<Long, GameObject> gameObjects = new ConcurrentHashMap<>();
 	private Map<Integer, List<GameItem>> gameItemsMap = new ConcurrentHashMap<>();
@@ -173,7 +181,6 @@ public class DataDumpPlugin extends Plugin
 	protected void startUp() throws Exception
 	{
 		overlayManager.add(npcSceneOverlay);
-		overlayManager.add(npcMinimapOverlay);
 		overlayManager.add(objectOverlay);
 		clientThread.invoke(this::rebuildAllNpcs);
 	}
@@ -182,7 +189,6 @@ public class DataDumpPlugin extends Plugin
 	protected void shutDown() throws Exception
 	{
 		overlayManager.remove(npcSceneOverlay);
-		overlayManager.remove(npcMinimapOverlay);
 		overlayManager.remove(objectOverlay);
 
 		highlightedNpcs.clear();
@@ -256,7 +262,6 @@ public class DataDumpPlugin extends Plugin
 		}
 
 		memorizeNpc(npc);
-		highlightedNpcs.add(npc);
 	}
 
 	@Subscribe
@@ -275,13 +280,20 @@ public class DataDumpPlugin extends Plugin
 
 	private void memorizeNpc(NPC npc)
 	{
+		if (!config.dumpSpawnData()) {
+			return;
+		}
+
+		highlightedNpcs.add(npc);
+
 		final int npcIndex = npc.getIndex();
 
 		for (DummyNPC savedNpc : cachedNpcs) {
-			if (savedNpc == null || savedNpc.getIndex() == npcIndex || savedNpc.getId() < 1) {
+			if (savedNpc != null && savedNpc.getIndex() == npcIndex && savedNpc.getId() > 1) {
 				return;
 			}
 		}
+
 		cachedNpcs.add(new DummyNPC(npc, npcManager));
 	}
 
@@ -307,7 +319,6 @@ public class DataDumpPlugin extends Plugin
 			}
 
 			memorizeNpc(npc);
-			highlightedNpcs.add(npc);
 		}
 	}
 
@@ -339,8 +350,21 @@ public class DataDumpPlugin extends Plugin
 					is.close();
 
 					for (DummyNPC dummyNpc : cachedNpcs) {
-						if (!dummyNpc.isDead() && !npcs.containsKey(dummyNpc.getIndex())) {
+						Npc cachedNpc = npcs.get(dummyNpc.getIndex());
+
+						if (!dummyNpc.isDead() && (cachedNpc == null || cachedNpc.getId() < 0)) {
 							npcs.put(dummyNpc.getIndex(), dummyNpc.getNpc());
+
+							final String formattedMessage = new ChatMessageBuilder()
+								.append(ChatColorType.HIGHLIGHT)
+								.append(Color.BLUE, "[NPC]: " + dummyNpc.getNpc().toString())
+								.build();
+
+							chatMessageManager.queue(QueuedMessage.builder()
+								.type(ChatMessageType.CONSOLE)
+								.name(appName)
+								.runeLiteFormattedMessage(formattedMessage)
+								.build());
 						}
 					}
 
@@ -363,33 +387,39 @@ public class DataDumpPlugin extends Plugin
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		}, 2, 20, TimeUnit.SECONDS);
+		}, 2, 10, TimeUnit.SECONDS);
 	}
 
 	@Subscribe
 	public void onWallObjectSpawned(WallObjectSpawned event)
 	{
-		cachedObjects.add(event.getWallObject());
+		if (config.dumpObjectData())
+			cachedObjects.add(event.getWallObject());
 	}
 
 	@Subscribe
 	public void onDecorativeObjectSpawned(DecorativeObjectSpawned event)
 	{
-		final DecorativeObject eventObject = event.getDecorativeObject();
-		cachedObjects.add(eventObject);
+		if (config.dumpObjectData()) {
+			final DecorativeObject eventObject = event.getDecorativeObject();
+			cachedObjects.add(eventObject);
+		}
 	}
 
 	@Subscribe
 	public void onGameObjectSpawned(GameObjectSpawned event)
 	{
-		cachedObjects.add(event.getGameObject());
+		if (config.dumpObjectData())
+			cachedObjects.add(event.getGameObject());
 	}
 
 	@Subscribe
 	public void onGroundObjectSpawned(GroundObjectSpawned groundObjectSpawned)
 	{
-		final GroundObject groundObject = groundObjectSpawned.getGroundObject();
-		cachedObjects.add(groundObject);
+		if (config.dumpObjectData()) {
+			final GroundObject groundObject = groundObjectSpawned.getGroundObject();
+			cachedObjects.add(groundObject);
+		}
 	}
 
 	private void setupObjectDump() throws IOException {
@@ -463,7 +493,8 @@ public class DataDumpPlugin extends Plugin
 	@Subscribe
 	public void onItemSpawned(ItemSpawned itemSpawned)
 	{
-		cachedItems.add(itemSpawned);
+		if (config.dumpItemData())
+			cachedItems.add(itemSpawned);
 	}
 
 	private void setupItemDump() throws IOException {

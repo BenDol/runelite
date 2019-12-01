@@ -6,4 +6,9 @@ import lombok.AllArgsConstructor;
 public class Region {
 	int id;
 	String name;
+
+	@Override
+	public String toString() {
+		return name;
+	}
 }

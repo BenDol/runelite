@@ -22,4 +22,13 @@ public class Npc {
 	List<String> actions;
 	List<Integer> configs;
 	String head_icon;
+
+	@Override
+	public String toString() {
+		return "Npc{" +
+				"id=" + id +
+				", name='" + name + '\'' +
+				", region=" + region +
+				'}';
+	}
 }

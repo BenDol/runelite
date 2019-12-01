@@ -47,7 +47,29 @@ public interface DataDumpConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 1,
+			position = 1,
+			keyName = "dumpItemData",
+			name = "Dump item data",
+			description = "Configures whether or not item data is dumped to game-items.json"
+	)
+	default boolean dumpItemData()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			position = 2,
+			keyName = "dumpObjectData",
+			name = "Dump object data",
+			description = "Configures whether or not object data is dumped to game-objects.json"
+	)
+	default boolean dumpObjectData()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		position = 3,
 		keyName = "highlightStyle",
 		name = "Highlight Style",
 		description = "Highlight setting"
@@ -58,7 +80,7 @@ public interface DataDumpConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 2,
+		position = 4,
 		keyName = "npcColor",
 		name = "Highlight Color",
 		description = "Color of the NPC highlight"
@@ -69,7 +91,7 @@ public interface DataDumpConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 3,
+		position = 5,
 		keyName = "drawNames",
 		name = "Draw names above NPC",
 		description = "Configures whether or not NPC names should be drawn above the NPC"
@@ -80,7 +102,7 @@ public interface DataDumpConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 4,
+		position = 6,
 		keyName = "drawMinimapNames",
 		name = "Draw names on minimap",
 		description = "Configures whether or not NPC names should be drawn on the minimap"
@@ -91,18 +113,7 @@ public interface DataDumpConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 5,
-		keyName = "dumpObjectData",
-		name = "Dump object data",
-		description = "Configures whether or not object data is dumped to game-objects.json"
-	)
-	default boolean dumpObjectData()
-	{
-		return false;
-	}
-
-	@ConfigItem(
-		position = 6,
+		position = 7,
 		keyName = "highlightObjects",
 		name = "Highlight objects",
 		description = "Highlight tracked objects"
@@ -114,7 +125,7 @@ public interface DataDumpConfig extends Config
 
 	@Alpha
 	@ConfigItem(
-		position = 7,
+		position = 8,
 		keyName = "objectMarkerColor",
 		name = "Object Marker color",
 		description = "Configures the color of object marker"
@@ -124,14 +135,5 @@ public interface DataDumpConfig extends Config
 		return Color.YELLOW;
 	}
 
-	@ConfigItem(
-		position = 8,
-		keyName = "dumpItemData",
-		name = "Dump item data",
-		description = "Configures whether or not item data is dumped to game-items.json"
-	)
-	default boolean dumpItemData()
-	{
-		return false;
-	}
+
 }
