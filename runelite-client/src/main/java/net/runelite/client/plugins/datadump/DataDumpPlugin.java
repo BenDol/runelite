@@ -52,6 +52,9 @@ import net.runelite.api.events.ItemSpawned;
 import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.NpcSpawned;
 import net.runelite.api.events.WallObjectSpawned;
+import net.runelite.cache.NpcManager;
+import net.runelite.cache.definitions.NpcDefinition;
+import net.runelite.cache.fs.Store;
 import net.runelite.client.RuneLite;
 import net.runelite.client.RuneLiteProperties;
 import net.runelite.client.callback.ClientThread;
@@ -74,6 +77,7 @@ import net.runelite.client.plugins.datadump.npc.Npc;
 import net.runelite.client.plugins.datadump.object.GameItem;
 import net.runelite.client.plugins.datadump.object.ObjectIndicatorsOverlay;
 import net.runelite.client.plugins.datadump.object.GameObject;
+import net.runelite.client.plugins.itemskeptondeath.Pets;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
@@ -171,6 +175,21 @@ public class DataDumpPlugin extends Plugin
 
 	private ScheduledFuture<?> npcDumpFuture, objectDumpFuture, itemDumpFeature;
 
+	private NpcManager _npcManager = loadNpcManager();
+
+	private static NpcManager loadNpcManager()
+	{
+		try {
+			File cacheDir = new File(RuneLite.USER_DIR.getPath() + "/jagexcache/cache");
+			Store store = new Store(cacheDir);
+			store.load();
+			return new NpcManager(store);
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+		return null;
+	}
+
 	@Provides
 	DataDumpConfig provideConfig(ConfigManager configManager)
 	{
@@ -180,6 +199,7 @@ public class DataDumpPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
+		_npcManager.load();
 		overlayManager.add(npcSceneOverlay);
 		overlayManager.add(objectOverlay);
 		clientThread.invoke(this::rebuildAllNpcs);
@@ -280,7 +300,8 @@ public class DataDumpPlugin extends Plugin
 
 	private void memorizeNpc(NPC npc)
 	{
-		if (!config.dumpSpawnData()) {
+		NpcDefinition def = _npcManager.get(npc.getId());
+		if (!config.dumpSpawnData() || (def != null && def.isPet)) {
 			return;
 		}
 

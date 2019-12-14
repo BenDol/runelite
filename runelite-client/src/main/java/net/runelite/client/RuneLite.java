@@ -78,6 +78,7 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class RuneLite
 {
+	public static final File USER_DIR = new File(System.getProperty("user.home"));
 	public static final File RUNELITE_DIR = new File(System.getProperty("user.home"), ".runelite-pro");
 	public static final File CACHE_DIR = new File(RUNELITE_DIR, "cache");
 	public static final File PROFILES_DIR = new File(RUNELITE_DIR, "profiles");
