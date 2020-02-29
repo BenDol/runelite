@@ -77,7 +77,6 @@ import net.runelite.client.plugins.datadump.npc.Npc;
 import net.runelite.client.plugins.datadump.object.GameItem;
 import net.runelite.client.plugins.datadump.object.ObjectIndicatorsOverlay;
 import net.runelite.client.plugins.datadump.object.GameObject;
-import net.runelite.client.plugins.itemskeptondeath.Pets;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
@@ -586,8 +585,6 @@ public class DataDumpPlugin extends Plugin
 			}
 		}, 2, 20, TimeUnit.SECONDS);
 	}
-
-
 
 	private ObjectComposition getObjectComposition(int id)
 	{

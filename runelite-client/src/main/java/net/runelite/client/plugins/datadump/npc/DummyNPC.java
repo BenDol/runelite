@@ -28,7 +28,7 @@ public class DummyNPC {
         int id = npc.getId();
         String name = npc.getName();
         int combatLevel = npc.getCombatLevel();
-        Integer health = npcManager.getHealth(name, combatLevel);
+        Integer health = npcManager.getHealth(id);
         if (health == null) {
             health = npc.getHealth();
         }

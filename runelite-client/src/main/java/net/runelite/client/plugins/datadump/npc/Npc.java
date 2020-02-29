@@ -18,7 +18,7 @@ public class Npc {
 	final Region region;
 	final Position position;
 
-	boolean interactable, visible;
+	Boolean interactable, visible;
 	List<String> actions;
 	List<Integer> configs;
 	String head_icon;
