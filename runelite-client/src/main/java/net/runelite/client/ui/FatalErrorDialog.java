@@ -28,7 +28,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.WindowAdapter;
@@ -53,7 +52,7 @@ import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.RuneLite;
 import net.runelite.client.RuneLiteProperties;
-import net.runelite.client.rs.VerificationException;
+import net.runelite.client.util.VerificationException;
 import net.runelite.client.util.LinkBrowser;
 
 @Slf4j
@@ -141,14 +140,7 @@ public class FatalErrorDialog extends JDialog
 
 		addButton("Open logs folder", () ->
 		{
-			try
-			{
-				Desktop.getDesktop().open(RuneLite.LOGS_DIR);
-			}
-			catch (IOException e)
-			{
-				log.warn("Unable to open logs", e);
-			}
+			LinkBrowser.open(RuneLite.LOGS_DIR.toString());
 		});
 		addButton("Get help on Discord", () -> LinkBrowser.browse(RuneLiteProperties.getDiscordInvite()));
 		addButton("Troubleshooting steps", () -> LinkBrowser.browse(RuneLiteProperties.getTroubleshootingLink()));

@@ -28,6 +28,7 @@ package net.runelite.client.plugins.clanchat;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Runnables;
 import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -46,7 +47,9 @@ import net.runelite.api.ClanMemberManager;
 import net.runelite.api.ClanMemberRank;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.Ignore;
 import net.runelite.api.MessageNode;
+import net.runelite.api.NameableContainer;
 import net.runelite.api.Player;
 import net.runelite.api.ScriptID;
 import net.runelite.api.SpriteID;
@@ -72,6 +75,7 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ClanManager;
 import net.runelite.client.game.SpriteManager;
+import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import static net.runelite.client.ui.JagexColors.CHAT_CLAN_NAME_OPAQUE_BACKGROUND;
@@ -112,6 +116,9 @@ public class ClanChatPlugin extends Plugin
 	@Inject
 	private ClientThread clientThread;
 
+	@Inject
+	private ChatboxPanelManager chatboxPanelManager;
+
 	private List<String> chats = new ArrayList<>();
 	private List<Player> clanMembers = new ArrayList<>();
 	private ClanChatIndicator clanMemberCounter;
@@ -121,6 +128,8 @@ public class ClanChatPlugin extends Plugin
 	private final Deque<ClanJoinMessage> clanJoinMessages = new ArrayDeque<>();
 	private Map<String, ClanMemberActivity> activityBuffer = new HashMap<>();
 	private int clanJoinedTick;
+
+	private boolean kickConfirmed = false;
 
 	@Provides
 	ClanChatConfig getConfig(ConfigManager configManager)
@@ -132,11 +141,17 @@ public class ClanChatPlugin extends Plugin
 	public void startUp()
 	{
 		chats = new ArrayList<>(Text.fromCSV(config.chatsData()));
+
+		if (config.showIgnores())
+		{
+			clientThread.invoke(() -> colorIgnoredPlayers(config.showIgnoresColor()));
+		}
 	}
 
 	@Override
 	public void shutDown()
 	{
+		clientThread.invoke(() -> colorIgnoredPlayers(Color.WHITE));
 		clanMembers.clear();
 		removeClanCounter();
 		resetClanChats();
@@ -160,6 +175,9 @@ public class ClanChatPlugin extends Plugin
 			{
 				removeClanCounter();
 			}
+
+			Color ignoreColor = config.showIgnores() ? config.showIgnoresColor() : Color.WHITE;
+			clientThread.invoke(() -> colorIgnoredPlayers(ignoreColor));
 		}
 	}
 
@@ -504,14 +522,45 @@ public class ClanChatPlugin extends Plugin
 	@Subscribe
 	public void onScriptCallbackEvent(ScriptCallbackEvent scriptCallbackEvent)
 	{
-		if (!scriptCallbackEvent.getEventName().equalsIgnoreCase("clanchatInput"))
+		switch (scriptCallbackEvent.getEventName())
 		{
-			return;
-		}
+			case "clanchatInput":
+			{
+				final int[] intStack = client.getIntStack();
+				final int size = client.getIntStackSize();
+				// If the user accidentally adds a / when the config and the clan chat tab is active, handle it like a normal message
+				boolean alterClanChatDispatch = config.clanTabChat() && !client.getVar(VarClientStr.CHATBOX_TYPED_TEXT).startsWith("/");
+				intStack[size - 1] = alterClanChatDispatch ? 1 : 0;
+				break;
+			}
+			case "confirmClanKick":
+			{
+				if (!config.confirmKicks() || kickConfirmed)
+				{
+					break;
+				}
 
-		final int[] intStack = client.getIntStack();
-		final int size = client.getIntStackSize();
-		intStack[size - 1] = config.clanTabChat() ? 1 : 0;
+				// Set a flag so the script doesn't instantly kick them
+				final int[] intStack = client.getIntStack();
+				final int size = client.getIntStackSize();
+				intStack[size - 1] = 1;
+
+				// Get name of player we are trying to kick
+				final String[] stringStack = client.getStringStack();
+				final int stringSize = client.getStringStackSize();
+				final String kickPlayerName = stringStack[stringSize - 1];
+
+				// Show a chatbox panel confirming the kick
+				clientThread.invokeLater(() -> confirmKickPlayer(kickPlayerName));
+				break;
+			}
+			case "clanChatChannelRebuild":
+				if (config.showIgnores())
+				{
+					clientThread.invoke(() -> colorIgnoredPlayers(config.showIgnoresColor()));
+				}
+				break;
+		}
 	}
 
 	int getClanAmount()
@@ -622,5 +671,43 @@ public class ClanChatPlugin extends Plugin
 		final BufferedImage image = spriteManager.getSprite(SpriteID.TAB_CLAN_CHAT, 0);
 		clanMemberCounter = new ClanChatIndicator(image, this);
 		infoBoxManager.addInfoBox(clanMemberCounter);
+	}
+
+	private void confirmKickPlayer(final String kickPlayerName)
+	{
+		chatboxPanelManager.openTextMenuInput("Attempting to kick: " + kickPlayerName)
+			.option("1. Confirm kick", () ->
+				clientThread.invoke(() ->
+				{
+					kickConfirmed = true;
+					client.runScript(ScriptID.CLAN_SEND_KICK, kickPlayerName);
+					kickConfirmed = false;
+				})
+			)
+			.option("2. Cancel", Runnables::doNothing)
+			.build();
+	}
+
+	private void colorIgnoredPlayers(Color ignoreColor)
+	{
+		Widget clanChatList = client.getWidget(WidgetInfo.CLAN_CHAT_LIST);
+		if (clanChatList == null || clanChatList.getChildren() == null)
+		{
+			return;
+		}
+
+		NameableContainer<Ignore> ignoreContainer = client.getIgnoreContainer();
+		// Iterate every 3 widgets, since the order of widgets is name, world, icon
+		for (int i = 0; i < clanChatList.getChildren().length; i += 3)
+		{
+			Widget listWidget = clanChatList.getChild(i);
+			String clanMemberName = listWidget.getText();
+			if (clanMemberName.isEmpty() || ignoreContainer.findByName(clanMemberName) == null)
+			{
+				continue;
+			}
+
+			listWidget.setTextColor(ignoreColor.getRGB());
+		}
 	}
 }
